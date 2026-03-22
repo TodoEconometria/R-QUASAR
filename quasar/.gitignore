@@ -2,3 +2,6 @@
 mi_primer_proyecto/
 .Rhistory
 .RData
+src/rust/vendor
+src/Makevars
+src/Makevars.win
