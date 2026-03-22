@@ -25,7 +25,7 @@ Format auto-detected from extension.}
 
 \item{version}{Character. Spark version. If \code{NULL}, uses installed version.}
 
-\item{...}{Additional arguments passed to \code{\link[sparklyr:spark_config]{sparklyr::spark_config()}}.}
+\item{...}{Additional arguments passed to \code{sparklyr::spark_config()}.}
 }
 \value{
 Invisible Spark connection, or a Spark DataFrame if \code{read} is given.
