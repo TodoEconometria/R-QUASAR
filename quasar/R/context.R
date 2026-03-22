@@ -1,14 +1,20 @@
-#' QUASAR Context — Global project configuration
+#' QUASAR Context — Global project configuration and object store
 #'
 #' @description
 #' R6 singleton that holds the global configuration for a QUASAR project.
-#' All framework functions read from this context automatically.
+#' Stores parameters, data, models, and results. All framework functions
+#' read from this context automatically — zero arguments needed.
 #'
 #' @keywords internal
 QuasarContext <- R6::R6Class(
   classname = "QuasarContext",
   private = list(
-    .config = list()
+    .config      = list(),
+    .data        = NULL,
+    .models      = list(),
+    .tables      = list(),
+    .plots       = list(),
+    .connections = list()
   ),
   public = list(
 
@@ -32,22 +38,143 @@ QuasarContext <- R6::R6Class(
       private$.config
     },
 
+    #' @description Store the active dataset
+    set_data = function(data) {
+      private$.data <- data
+      invisible(self)
+    },
+
+    #' @description Get the active dataset
+    get_data = function() {
+      private$.data
+    },
+
+    #' @description Store a model (named or as 'last')
+    set_model = function(model, name = "last") {
+      private$.models[[name]] <- model
+      invisible(self)
+    },
+
+    #' @description Get a model by name
+    get_model = function(name = "last") {
+      private$.models[[name]]
+    },
+
+    #' @description Get all stored models
+    get_models = function() {
+      private$.models
+    },
+
+    #' @description Store a generated table
+    store_table = function(tbl, name = NULL) {
+      name <- name %||% paste0("table_", length(private$.tables) + 1)
+      private$.tables[[name]] <- tbl
+      invisible(self)
+    },
+
+    #' @description Get stored tables
+    get_tables = function() {
+      private$.tables
+    },
+
+    #' @description Store a generated plot
+    store_plot = function(plt, name = NULL) {
+      name <- name %||% paste0("plot_", length(private$.plots) + 1)
+      private$.plots[[name]] <- plt
+      invisible(self)
+    },
+
+    #' @description Get stored plots
+    get_plots = function() {
+      private$.plots
+    },
+
+    #' @description Store a connection
+    set_connection = function(conn, name) {
+      private$.connections[[name]] <- conn
+      invisible(self)
+    },
+
+    #' @description Get a connection by name
+    get_connection = function(name) {
+      private$.connections[[name]]
+    },
+
+    #' @description Get all connections
+    get_connections = function() {
+      private$.connections
+    },
+
     #' @description Reset context to empty state
     reset = function() {
-      private$.config <- list()
+      # Gracefully disconnect active connections
+      purrr::walk(names(private$.connections), function(name) {
+        conn <- private$.connections[[name]]
+        if (is.null(conn)) return()
+        tryCatch({
+          if (inherits(conn, "DBIConnection") && DBI::dbIsValid(conn)) {
+            DBI::dbDisconnect(conn)
+          } else if (inherits(conn, "spark_connection") &&
+                     requireNamespace("sparklyr", quietly = TRUE)) {
+            sparklyr::spark_disconnect(conn)
+          }
+        }, error = function(e) NULL)
+      })
+      private$.config      <- list()
+      private$.data        <- NULL
+      private$.models      <- list()
+      private$.tables      <- list()
+      private$.plots       <- list()
+      private$.connections <- list()
       invisible(self)
     },
 
     #' @description Print context summary
     print = function(...) {
       cli::cli_h2("QUASAR Project Context")
-      if (length(private$.config) == 0) {
-        cli::cli_alert_warning("No configuration set. Run {.fn qsr_config} first.")
-      } else {
+      if (length(private$.config) == 0 && is.null(private$.data) &&
+          length(private$.models) == 0) {
+        cli::cli_alert_warning("Empty. Start with {.fn qsr_data} and {.fn qsr_config}.")
+        return(invisible(self))
+      }
+
+      # Config params
+      if (length(private$.config) > 0) {
+        cli::cli_text("{.strong Config:}")
         purrr::iwalk(private$.config, function(val, key) {
-          cli::cli_inform("  {.field {key}}: {.val {val}}")
+          if (!is.data.frame(val) && !is.list(val) && length(val) == 1) {
+            cli::cli_inform("  {.field {key}}: {.val {val}}")
+          }
         })
       }
+
+      # Data
+      if (!is.null(private$.data)) {
+        nr <- nrow(private$.data)
+        nc <- ncol(private$.data)
+        cli::cli_text("{.strong Data:} {nr} rows x {nc} cols")
+      }
+
+      # Models
+      if (length(private$.models) > 0) {
+        n_models <- length(private$.models)
+        model_names <- paste(names(private$.models), collapse = ", ")
+        cli::cli_text("{.strong Models:} {n_models} ({model_names})")
+      }
+
+      # Connections
+      if (length(private$.connections) > 0) {
+        conn_names <- paste(names(private$.connections), collapse = ", ")
+        cli::cli_text("{.strong Connections:} {conn_names}")
+      }
+
+      # Outputs
+      n_tables <- length(private$.tables)
+      n_plots  <- length(private$.plots)
+      if (n_tables > 0 || n_plots > 0) {
+        cli::cli_text("{.strong Outputs:} {n_tables} tables, {n_plots} plots")
+      }
+
       invisible(self)
     }
   )
@@ -125,12 +252,102 @@ qsr_config <- function(significance_level = 0.05,
 }
 
 
-#' Retrieve a value from the QUASAR context
+#' Register the active dataset
 #'
-#' Used internally by all QUASAR functions to read configuration.
+#' Stores a data frame in the QUASAR context so all downstream functions
+#' (`qsr_model`, `qsr_table`, `qsr_plot`) use it automatically.
 #'
-#' @param key Character. The configuration key to retrieve.
-#' @param default Default value if key is not foun
+#' @param data A data frame.
+#' @param name Character. Optional display name for the dataset.
+#'
+#' @return Invisible — the data frame.
+#' @export
+#'
+#' @examples
+#' qsr_data(mtcars)
+qsr_data <- function(data, name = NULL) {
+  if (!is.data.frame(data)) {
+    cli::cli_abort("{.arg data} must be a data frame.")
+  }
+
+  .qsr_context$set_data(data)
+
+  if (!is.null(name)) {
+    .qsr_context$set("data_name", name)
+  }
+
+  nr <- nrow(data)
+  nc <- ncol(data)
+  display <- name %||% "dataset"
+  cli::cli_alert_success("Registered {.val {display}}: {nr} rows x {nc} cols")
+
+  invisible(data)
+}
+
+
+#' Fit a model with minimal syntax
+#'
+#' Fits a statistical model using the active dataset from context.
+#' No need to pass data — QUASAR already knows it.
+#'
+#' @param formula A model formula (e.g., `mpg ~ wt + hp`).
+#' @param type Character. Model type: `"lm"`, `"glm"`, `"logit"`, `"probit"`.
+#'   Default `"lm"`.
+#' @param data Optional data frame. If `NULL`, uses the active dataset
+#'   from context.
+#' @param name Character. Name to store the model under. Default `"last"`.
+#' @param family For GLM models. Ignored for `"lm"`.
+#' @param ... Additional arguments passed to the fitting function.
+#'
+#' @return The fitted model object (also stored in context).
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' qsr_data(mtcars)
+#' qsr_model(mpg ~ wt + hp)
+#' qsr_model(mpg ~ wt + hp + disp, name = "full")
+#' qsr_model(am ~ wt + hp, type = "logit")
+#' }
+qsr_model <- function(formula,
+                      type   = c("lm", "glm", "logit", "probit"),
+                      data   = NULL,
+                      name   = "last",
+                      family = NULL,
+                      ...) {
+
+  type <- match.arg(type)
+
+  # Get data from context if not provided
+  data <- data %||% .qsr_context$get_data()
+  if (is.null(data)) {
+    cli::cli_abort(c(
+      "No data available.",
+      "i" = "Register data first with {.fn qsr_data} or pass {.arg data}."
+    ))
+  }
+
+  # Fit model
+  model <- switch(type,
+    lm     = stats::lm(formula, data = data, ...),
+    glm    = stats::glm(formula, data = data, family = family %||% stats::gaussian(), ...),
+    logit  = stats::glm(formula, data = data, family = stats::binomial(link = "logit"), ...),
+    probit = stats::glm(formula, data = data, family = stats::binomial(link = "probit"), ...)
+  )
+
+  # Store in context
+  .qsr_context$set_model(model, name)
+
+  # Report
+  resp  <- as.character(formula)[2]
+  preds <- as.character(formula)[3]
+  cli::cli_alert_success(
+    "Model {.val {name}} ({type}): {resp} ~ {preds}"
+  )
+
+  invisible(model)
+}
+
 
 #' Retrieve a value from the QUASAR context
 #'
@@ -152,7 +369,7 @@ qsr_get <- function(key, default = NULL) {
 
 #' Reset the QUASAR context
 #'
-#' Clears all configuration from the current session context.
+#' Clears all configuration, data, models, and outputs from the session.
 #'
 #' @return Invisible.
 #' @export
