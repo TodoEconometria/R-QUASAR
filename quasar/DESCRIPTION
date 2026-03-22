@@ -1,0 +1,12 @@
+Package: quasar
+Title: Query-driven Unified Automated Stack for Analytical Runtime
+Version: 0.0.0.9000
+Authors@R: 
+    person("Juan Marcelo", "Gutierrez Miranda", , "info@todoeconometria.com", role = c("aut", "cre"))
+Description: A framework for R that eliminates boilerplate and
+    standardizes project architecture for data scientists and academic
+    researchers.
+License: GPL (>= 3)
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
