@@ -1,0 +1,248 @@
+---
+title: "From Raw Data to APA7 in 10 Lines"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{From Raw Data to APA7 in 10 Lines}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 5
+)
+```
+
+## The Problem
+
+Every data analysis project in R starts the same way: 200 lines of
+boilerplate. Set a seed. Configure paths. Load data. Fit a model. Format a
+table for publication. Style a plot. Export to Word. Repeat next project.
+
+**QUASAR eliminates that cycle.** One framework for
+data -> insights -> output.
+
+## Quick Start: A Complete Analysis
+
+```{r quickstart, eval = FALSE}
+library(quasar)
+
+# 1. Configure once
+qsr_config()
+
+# 2. Register data
+qsr_data(mtcars)
+
+# 3. Fit a model (one line — data comes from context)
+qsr_model(mpg ~ wt + hp + disp)
+
+# 4. Publication-ready table (zero arguments — reads model from context)
+qsr_table()
+
+# 5. Coefficient plot (zero arguments — reads model from context)
+qsr_plot(type = "coefficient")
+```
+
+That's it. Five function calls. No `broom::tidy()`, no `gt::tab_options()`,
+no 15-line ggplot2 theme blocks. QUASAR handles it.
+
+## The Four Layers
+
+QUASAR is organized in four layers, each solving a specific pain point:
+
+| Layer | What it does | Key functions |
+|-------|-------------|---------------|
+| **Scaffold** | Standardized project structure | `qsr_init()` |
+| **Context** | Configure once, use everywhere | `qsr_config()`, `qsr_data()`, `qsr_model()` |
+| **Connectors** | Databases, APIs, Spark, Python | `qsr_db()`, `qsr_fetch()`, `qsr_spark()`, `qsr_python()` |
+| **Output** | Tables, plots, reports | `qsr_table()`, `qsr_plot()`, `qsr_report()` |
+
+## Layer 1: Scaffold
+
+Create a standardized project in one call:
+
+```{r scaffold, eval = FALSE}
+qsr_init(
+  name   = "electoral_analysis_2024",
+  type   = "academic",
+  author = "Jane Doe"
+)
+```
+
+This generates a ready-to-use directory structure with numbered folders
+(`01_data/`, `02_transform/`, `03_model/`, `04_output/`), YAML config files,
+and a `main.R` entry point.
+
+## Layer 2: Context — The Heart of QUASAR
+
+The context is what makes zero-argument calls possible. Register your data
+and configuration once — every downstream function reads from it
+automatically.
+
+```{r context, eval = FALSE}
+# Configure analysis parameters
+qsr_config(
+  significance_level = 0.05,
+  random_seed        = 42,
+  output_format      = "apa7"
+)
+
+# Register data — all functions now know about it
+qsr_data(mtcars)
+
+# Fit models — stored in context by name
+qsr_model(mpg ~ wt + hp, name = "base")
+qsr_model(mpg ~ wt + hp + disp + qsec, name = "full")
+
+# Everything downstream works with zero arguments
+qsr_table()                       # table from last model
+qsr_table(type = "summary")      # descriptive stats from active data
+qsr_plot(type = "coefficient")    # coefficient plot from last model
+qsr_plot(type = "correlation")    # correlation matrix from active data
+```
+
+## Layer 3: Connectors
+
+### Databases
+
+```{r db, eval = FALSE}
+# SQLite — zero setup
+qsr_db("sqlite", dbname = "research.sqlite", table = "surveys")
+
+# PostgreSQL — credentials from environment variables
+qsr_db("postgres", dbname = "research",
+       query = "SELECT * FROM surveys WHERE year > 2020")
+```
+
+After `qsr_db()`, the data is automatically registered in context. You can
+immediately call `qsr_model()` or `qsr_table(type = "summary")`.
+
+### Academic APIs
+
+```{r fetch, eval = FALSE}
+# World Bank GDP per capita
+qsr_fetch("worldbank", indicator = "NY.GDP.PCAP.CD",
+          country = "all", start = 2000, end = 2023)
+
+# FRED unemployment rate
+qsr_fetch("fred", series_id = "UNRATE")
+
+# Any CSV from a URL
+qsr_fetch("url", url = "https://example.com/data.csv")
+```
+
+Results are cached for 24 hours to avoid redundant API calls during
+iterative analysis.
+
+### Python Interop
+
+```{r python, eval = FALSE}
+# Call any Python function
+qsr_python("math", fn = "sqrt", args = list(16))
+
+# Fit a scikit-learn model
+qsr_python("sklearn.linear_model", fn = "LinearRegression",
+           fit = list(X_train, y_train), predict = X_test)
+```
+
+## Layer 4: Output Engine
+
+### Tables
+
+`qsr_table()` creates publication-ready tables with APA7 or Chicago
+formatting:
+
+```{r tables_demo}
+library(quasar)
+
+model <- lm(mpg ~ wt + hp, data = mtcars)
+qsr_table(model, caption = "Table 1. OLS Estimates of Fuel Efficiency")
+```
+
+Export to multiple formats simultaneously:
+
+```{r tables_export, eval = FALSE}
+qsr_table(model, export = c("html", "latex", "word"))
+```
+
+### Plots — Static and Interactive
+
+QUASAR offers 20 plot types through a single function:
+
+```{r plot_scatter}
+qsr_plot(mtcars, type = "scatter", x = wt, y = mpg, color = cyl,
+         title = "Weight vs. Fuel Efficiency")
+```
+
+```{r plot_coef}
+model <- lm(mpg ~ wt + hp + disp + qsec, data = mtcars)
+qsr_plot(model, type = "coefficient",
+         title = "Figure 1. OLS Coefficient Estimates")
+```
+
+Make any plot interactive with one flag:
+
+```{r interactive, eval = FALSE}
+qsr_plot(mtcars, type = "scatter", x = wt, y = mpg,
+         interactive = TRUE)
+```
+
+Native plotly types for advanced visualizations:
+
+```{r plotly_native, eval = FALSE}
+# 3D scatter
+qsr_plot(mtcars, type = "scatter3d", x = wt, y = hp, z = mpg, color = cyl)
+
+# Correlation heatmap (interactive)
+qsr_plot(mtcars, type = "heatmap")
+
+# Radar chart
+qsr_plot(team_stats, type = "radar", color = team)
+```
+
+### Three Themes
+
+```{r themes, eval = FALSE}
+qsr_plot(mtcars, type = "scatter", x = wt, y = mpg,
+         theme = "quasar_academic")   # serif, clean, publication-ready
+qsr_plot(mtcars, type = "scatter", x = wt, y = mpg,
+         theme = "quasar_minimal")    # no grid, axis lines only
+qsr_plot(mtcars, type = "scatter", x = wt, y = mpg,
+         theme = "quasar_dark")       # dark background for presentations
+```
+
+## The Complete Pipeline
+
+Here is a realistic academic workflow — from database to publication — in
+10 lines:
+
+```{r pipeline, eval = FALSE}
+library(quasar)
+
+qsr_config(output_format = "apa7")
+qsr_db("sqlite", dbname = "study_data.sqlite", table = "responses")
+qsr_model(satisfaction ~ age + income + education)
+qsr_table(caption = "Table 1. OLS Estimates")
+qsr_table(type = "summary", caption = "Table 2. Descriptive Statistics")
+qsr_plot(type = "coefficient", title = "Figure 1. Effect Sizes")
+qsr_plot(type = "correlation", title = "Figure 2. Correlation Matrix",
+         interactive = TRUE, export = "html")
+qsr_report(title = "Customer Satisfaction Analysis", journal = "r_journal")
+```
+
+Ten lines. Database to publication-ready report. No boilerplate.
+
+## Design Philosophy
+
+- **Convention over configuration** — sensible defaults, override when needed
+- **Zero-argument by default** — if context knows it, you don't type it
+- **Compatible, not competitive** — works with tidyverse, does not replace it
+- **Invisible complexity** — Rust backend coming in Phase 2, same API
+
+## Learn More
+
+- GitHub: [TodoEconometria/R-QUASAR](https://github.com/TodoEconometria/R-QUASAR)
+- Author: Juan Marcelo Gutierrez Miranda (TodoEconometria)

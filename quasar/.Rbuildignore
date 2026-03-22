@@ -1,3 +1,7 @@
 ^quasar\.Rproj$
 ^\.Rproj\.user$
 ^LICENSE\.md$
+^CONTEXT\.md$
+^QUASAR_BLUEPRINT\.md$
+^\.claude$
+^README\.Rmd$
