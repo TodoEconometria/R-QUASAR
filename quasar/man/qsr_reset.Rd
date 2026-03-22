@@ -10,7 +10,7 @@ qsr_reset()
 Invisible.
 }
 \description{
-Clears all configuration from the current session context.
+Clears all configuration, data, models, and outputs from the session.
 }
 \examples{
 qsr_reset()
