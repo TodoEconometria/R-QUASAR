@@ -180,7 +180,7 @@ qsr_db <- function(driver   = c("sqlite", "postgres", "mysql", "odbc"),
 #'   Format auto-detected from extension.
 #' @param name Character. Name for context registration. Default `"spark_data"`.
 #' @param version Character. Spark version. If `NULL`, uses installed version.
-#' @param ... Additional arguments passed to [sparklyr::spark_config()].
+#' @param ... Additional arguments passed to `sparklyr::spark_config()`.
 #'
 #' @return Invisible Spark connection, or a Spark DataFrame if `read` is given.
 #' @export

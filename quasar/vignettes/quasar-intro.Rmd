@@ -11,6 +11,7 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
+  eval = FALSE,
   fig.width = 7,
   fig.height = 5
 )
@@ -36,13 +37,13 @@ qsr_config()
 # 2. Register data
 qsr_data(mtcars)
 
-# 3. Fit a model (one line — data comes from context)
+# 3. Fit a model (one line -- data comes from context)
 qsr_model(mpg ~ wt + hp + disp)
 
-# 4. Publication-ready table (zero arguments — reads model from context)
+# 4. Publication-ready table (zero arguments -- reads model from context)
 qsr_table()
 
-# 5. Coefficient plot (zero arguments — reads model from context)
+# 5. Coefficient plot (zero arguments -- reads model from context)
 qsr_plot(type = "coefficient")
 ```
 
@@ -76,10 +77,10 @@ This generates a ready-to-use directory structure with numbered folders
 (`01_data/`, `02_transform/`, `03_model/`, `04_output/`), YAML config files,
 and a `main.R` entry point.
 
-## Layer 2: Context — The Heart of QUASAR
+## Layer 2: Context -- The Heart of QUASAR
 
 The context is what makes zero-argument calls possible. Register your data
-and configuration once — every downstream function reads from it
+and configuration once -- every downstream function reads from it
 automatically.
 
 ```{r context, eval = FALSE}
@@ -90,10 +91,10 @@ qsr_config(
   output_format      = "apa7"
 )
 
-# Register data — all functions now know about it
+# Register data -- all functions now know about it
 qsr_data(mtcars)
 
-# Fit models — stored in context by name
+# Fit models -- stored in context by name
 qsr_model(mpg ~ wt + hp, name = "base")
 qsr_model(mpg ~ wt + hp + disp + qsec, name = "full")
 
@@ -109,10 +110,10 @@ qsr_plot(type = "correlation")    # correlation matrix from active data
 ### Databases
 
 ```{r db, eval = FALSE}
-# SQLite — zero setup
+# SQLite -- zero setup
 qsr_db("sqlite", dbname = "research.sqlite", table = "surveys")
 
-# PostgreSQL — credentials from environment variables
+# PostgreSQL -- credentials from environment variables
 qsr_db("postgres", dbname = "research",
        query = "SELECT * FROM surveys WHERE year > 2020")
 ```
@@ -168,7 +169,7 @@ Export to multiple formats simultaneously:
 qsr_table(model, export = c("html", "latex", "word"))
 ```
 
-### Plots — Static and Interactive
+### Plots -- Static and Interactive
 
 QUASAR offers 20 plot types through a single function:
 
@@ -216,7 +217,7 @@ qsr_plot(mtcars, type = "scatter", x = wt, y = mpg,
 
 ## The Complete Pipeline
 
-Here is a realistic academic workflow — from database to publication — in
+Here is a realistic academic workflow -- from database to publication -- in
 10 lines:
 
 ```{r pipeline, eval = FALSE}
@@ -237,10 +238,10 @@ Ten lines. Database to publication-ready report. No boilerplate.
 
 ## Design Philosophy
 
-- **Convention over configuration** — sensible defaults, override when needed
-- **Zero-argument by default** — if context knows it, you don't type it
-- **Compatible, not competitive** — works with tidyverse, does not replace it
-- **Invisible complexity** — Rust backend coming in Phase 2, same API
+- **Convention over configuration** -- sensible defaults, override when needed
+- **Zero-argument by default** -- if context knows it, you don't type it
+- **Compatible, not competitive** -- works with tidyverse, does not replace it
+- **Invisible complexity** -- Rust backend coming in Phase 2, same API
 
 ## Learn More
 

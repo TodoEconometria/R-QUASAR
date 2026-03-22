@@ -1,11 +1,5 @@
 #' QUASAR Context — Global project configuration and object store
-#'
-#' @description
-#' R6 singleton that holds the global configuration for a QUASAR project.
-#' Stores parameters, data, models, and results. All framework functions
-#' read from this context automatically — zero arguments needed.
-#'
-#' @keywords internal
+#' @noRd
 QuasarContext <- R6::R6Class(
   classname = "QuasarContext",
   private = list(
