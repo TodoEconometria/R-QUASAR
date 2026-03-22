@@ -1,0 +1,30 @@
+[package]
+name = 'quasar'
+publish = false
+version = '0.1.0'
+edition = '2021'
+rust-version = '1.65'
+
+[lib]
+crate-type = ['staticlib']
+name = 'quasar'
+
+[dependencies]
+extendr-api = '0.8.1'
+polars = { version = '0.46', default-features = false, features = [
+    'csv',
+    'parquet',
+    'lazy',
+    'dtype-full',
+    'strings',
+    'temporal',
+    'round_series',
+    'is_in',
+    'abs',
+    'cum_agg',
+    'log',
+] }
+
+[profile.release]
+lto = true
+codegen-units = 1
