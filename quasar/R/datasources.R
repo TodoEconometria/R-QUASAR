@@ -312,6 +312,165 @@ qsr_search <- function(query, sources = NULL, limit = 10L) {
 
 
 # ============================================================
+# Smart download guidance for auth-required portals
+# ============================================================
+
+#' @noRd
+.qsr_download_guides <- list(
+  ine_bolivia = list(
+    name = "INE Bolivia — Encuestas de Hogares",
+    url = "https://anda.ine.gob.bo/index.php/catalog",
+    auth = "registration + form",
+    steps = c(
+      "Go to: https://www.ine.gob.bo/index.php/censos-y-banco-de-datos/censos/bases-de-datos-encuestas-sociales/",
+      "Select 'Encuestas de Hogares {YEAR}' from the dropdown",
+      "Click the catalog link -> fill the usage form -> accept terms",
+      "Download the ZIP file",
+      "Save to your data_path folder (e.g., E:/quasar_data/raw/bolivia/)"
+    ),
+    then = 'qsr_load_folder("E:/quasar_data/raw/bolivia/", extract_zips = TRUE)',
+    catalog_ids = c(
+      "2012" = 51, "2013" = 39, "2014" = 38, "2015" = 53,
+      "2016" = 54, "2017" = 55, "2018" = 78, "2019" = 84,
+      "2020" = 88, "2021" = 93, "2022" = 106, "2023" = 108,
+      "2024" = 163
+    )
+  ),
+  inei_peru = list(
+    name = "INEI Peru — ENAHO",
+    url = "https://iinei.inei.gob.pe/microdatos/",
+    auth = "direct download (navigate portal)",
+    steps = c(
+      "Go to: https://iinei.inei.gob.pe/microdatos/",
+      "Select: Encuesta Nacional de Hogares (ENAHO)",
+      "Select year and module (601 = agricultural, 100 = household)",
+      "Download the ZIP file",
+      "Save to your data_path folder"
+    ),
+    then = 'qsr_load_folder("E:/quasar_data/raw/peru/", pattern = "601", extract_zips = TRUE)'
+  ),
+  dane_colombia = list(
+    name = "DANE Colombia — ENCV/GEIH",
+    url = "https://microdatos.dane.gov.co/",
+    auth = "registration + download",
+    steps = c(
+      "Go to: https://microdatos.dane.gov.co/",
+      "Search: Encuesta Nacional de Calidad de Vida",
+      "Select year -> download microdata",
+      "Save to your data_path folder"
+    ),
+    then = 'qsr_load_folder("E:/quasar_data/raw/colombia/", extract_zips = TRUE)'
+  ),
+  lapop = list(
+    name = "LAPOP — Latin American Public Opinion Project",
+    url = "https://www.vanderbilt.edu/lapop/data-access.php",
+    auth = "formal request (1-2 weeks)",
+    steps = c(
+      "Go to: https://www.vanderbilt.edu/lapop/data-access.php",
+      "Submit data access request with research description",
+      "Wait for approval (~1-2 weeks)",
+      "Download .dta files for Bolivia, Peru, Colombia",
+      "Save to your data_path folder"
+    ),
+    then = 'qsr_load_folder("E:/quasar_data/raw/lapop/", extract_zips = TRUE)'
+  ),
+  pnis_colombia = list(
+    name = "ARN Colombia — PNIS beneficiary data",
+    url = "https://www.renovacionterritorio.gov.co/",
+    auth = "formal written request (1-3 months)",
+    steps = c(
+      "Email: comunicaciones@renovacionterritorio.gov.co",
+      "Legal basis: Art. 23, Ley 1712 de 2014 (Colombia)",
+      "Request: PNIS beneficiary database with follow-up data",
+      "Attach: CV + DOI of published paper as credential",
+      "Wait: 10 business days (official), 1-3 months (real)"
+    ),
+    then = 'qsr_load_folder("E:/quasar_data/raw/pnis/", extract_zips = TRUE)'
+  )
+)
+
+
+#' Show download guidance for a data source that requires manual steps
+#'
+#' When a data source requires authentication, form submission, or
+#' formal request, QUASAR guides the researcher through the manual
+#' steps and tells them what to run after downloading.
+#'
+#' @param source Character. Source name: "ine_bolivia", "inei_peru",
+#'   "dane_colombia", "lapop", "pnis_colombia".
+#' @param year Character or integer. Specific year (if applicable).
+#'
+#' @examples
+#' \dontrun{
+#' qsr_guide("ine_bolivia")
+#' qsr_guide("inei_peru")
+#' qsr_guide("pnis_colombia")
+#' }
+#'
+#' @export
+qsr_guide <- function(source, year = NULL) {
+
+  source <- tolower(source)
+
+  if (!source %in% names(.qsr_download_guides)) {
+    available <- paste(names(.qsr_download_guides), collapse = ", ")
+    cli::cli_abort(c(
+      "No guide for {.val {source}}.",
+      "i" = "Available: {available}"
+    ))
+  }
+
+  g <- .qsr_download_guides[[source]]
+
+  cli::cli_h2(g$name)
+  cli::cli_alert_warning("This source requires: {.strong {g$auth}}")
+  cli::cli_alert_info("Portal: {.url {g$url}}")
+  cli::cli_text("")
+
+  cli::cli_h3("Manual steps:")
+  for (i in seq_along(g$steps)) {
+    step <- g$steps[i]
+    if (!is.null(year)) {
+      step <- gsub("\\{YEAR\\}", year, step)
+    }
+    cli::cli_text("  {.strong {i}.} {step}")
+  }
+
+  # Show catalog URLs for INE Bolivia
+  if (!is.null(g$catalog_ids) && !is.null(year)) {
+    yr <- as.character(year)
+    if (yr %in% names(g$catalog_ids)) {
+      cat_id <- g$catalog_ids[yr]
+      cli::cli_text("")
+      cli::cli_alert_info(
+        "Direct link: {.url {paste0('https://anda.ine.gob.bo/index.php/catalog/', cat_id, '/get-microdata')}}"
+      )
+    }
+  }
+
+  if (!is.null(g$catalog_ids) && is.null(year)) {
+    cli::cli_text("")
+    cli::cli_h3("Available years:")
+    for (yr in names(g$catalog_ids)) {
+      cat_id <- g$catalog_ids[yr]
+      cli::cli_text(
+        "  {yr}: {.url {paste0('https://anda.ine.gob.bo/index.php/catalog/', cat_id, '/get-microdata')}}"
+      )
+    }
+  }
+
+  data_path <- .qsr_context$get("data_path")
+  cli::cli_text("")
+  cli::cli_h3("After downloading:")
+  if (!is.null(data_path)) {
+    cli::cli_text("  Save files to: {.path {data_path}}")
+  }
+  cli::cli_text("  Then run:")
+  cli::cli_code(g$then)
+}
+
+
+# ============================================================
 # Expanded fetch dispatchers
 # ============================================================
 

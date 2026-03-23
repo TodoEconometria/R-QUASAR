@@ -143,6 +143,197 @@ qsr_download <- function(url,
 }
 
 
+# ============================================================
+# qsr_load_folder() — Read all data files from a folder
+# ============================================================
+
+#' Load all data files from a folder
+#'
+#' Reads every data file in a directory: ZIP (auto-extracts), CSV,
+#' Excel, Stata (.dta), SPSS (.sav), Parquet. Returns a named list
+#' of data frames indexed by filename, and optionally stacks them.
+#'
+#' Designed for the workflow: "download manually, point QUASAR at
+#' the folder, let it handle everything."
+#'
+#' @param path Character. Path to the folder.
+#' @param pattern Character. Regex to filter filenames. Default NULL
+#'   reads all supported formats.
+#' @param recursive Logical. Search subfolders. Default FALSE.
+#' @param stack Logical. If TRUE, stack all data frames with
+#'   `rbind(fill = TRUE)` and add a `_source` column. Default FALSE.
+#' @param extract_zips Logical. Auto-extract ZIP files. Default TRUE.
+#' @param name Character. Context name (used when stack = TRUE).
+#'   Default "folder_data".
+#' @param register Logical. Default TRUE.
+#'
+#' @return A named list of data frames, or a single stacked data frame
+#'   if `stack = TRUE` (invisibly).
+#'
+#' @examples
+#' \dontrun{
+#' # Point QUASAR at your manually downloaded Bolivia surveys
+#' surveys <- qsr_load_folder(
+#'   "E:/quasar_data/coca_research/raw/bolivia/",
+#'   extract_zips = TRUE
+#' )
+#'
+#' # Stack all years into one panel
+#' panel <- qsr_load_folder(
+#'   "E:/quasar_data/coca_research/raw/bolivia/",
+#'   pattern = "Persona",
+#'   stack = TRUE,
+#'   name = "eh_personas"
+#' )
+#' }
+#'
+#' @export
+qsr_load_folder <- function(path,
+                            pattern = NULL,
+                            recursive = FALSE,
+                            stack = FALSE,
+                            extract_zips = TRUE,
+                            name = "folder_data",
+                            register = TRUE) {
+
+  if (!dir.exists(path)) {
+    cli::cli_abort("Folder not found: {.path {path}}")
+  }
+
+  # Supported extensions
+  supported <- c("csv", "tsv", "xlsx", "xls", "dta", "sav",
+                  "parquet", "pq", "json", "zip")
+  ext_pattern <- paste0("\\.(", paste(supported, collapse = "|"), ")$")
+
+  # List files
+  all_files <- list.files(path, full.names = TRUE, recursive = recursive)
+
+  # Filter by extension
+  data_files <- all_files[grepl(ext_pattern, all_files, ignore.case = TRUE)]
+
+  # Filter by user pattern
+  if (!is.null(pattern)) {
+    data_files <- data_files[grepl(pattern, basename(data_files), ignore.case = TRUE)]
+  }
+
+  if (length(data_files) == 0) {
+    cli::cli_abort(c(
+      "No data files found in {.path {path}}",
+      "i" = "Supported formats: {.val {paste(supported, collapse = ', ')}}",
+      if (!is.null(pattern)) c("i" = "Pattern filter: {.val {pattern}}")
+    ))
+  }
+
+  # Extract ZIPs first
+  if (extract_zips) {
+    zip_files <- data_files[grepl("\\.zip$", data_files, ignore.case = TRUE)]
+    for (zf in zip_files) {
+      extract_dir <- file.path(path, tools::file_path_sans_ext(basename(zf)))
+      if (!dir.exists(extract_dir)) {
+        dir.create(extract_dir, recursive = TRUE)
+        utils::unzip(zf, exdir = extract_dir)
+        cli::cli_alert_info("Extracted: {.file {basename(zf)}} -> {.file {basename(extract_dir)}/}")
+      }
+    }
+
+    # Re-scan including extracted files
+    all_files <- list.files(path, full.names = TRUE, recursive = TRUE)
+    data_files <- all_files[grepl(ext_pattern, all_files, ignore.case = TRUE)]
+    data_files <- data_files[!grepl("\\.zip$", data_files, ignore.case = TRUE)]
+
+    if (!is.null(pattern)) {
+      data_files <- data_files[grepl(pattern, basename(data_files), ignore.case = TRUE)]
+    }
+  }
+
+  cli::cli_alert_info("Found {.val {length(data_files)}} data files")
+
+  # Read each file
+  results <- list()
+  for (f in data_files) {
+    file_name <- tools::file_path_sans_ext(basename(f))
+    ext <- tolower(tools::file_ext(f))
+
+    df <- tryCatch({
+      switch(ext,
+        csv = utils::read.csv(f, stringsAsFactors = FALSE),
+        tsv = utils::read.delim(f, stringsAsFactors = FALSE),
+        xlsx = , xls = {
+          .qsr_require("readxl", "for Excel files")
+          as.data.frame(readxl::read_excel(f))
+        },
+        dta = {
+          .qsr_require("haven", "for Stata files")
+          as.data.frame(haven::read_dta(f))
+        },
+        sav = {
+          .qsr_require("haven", "for SPSS files")
+          as.data.frame(haven::read_sav(f))
+        },
+        parquet = , pq = {
+          .qsr_require("arrow", "for Parquet files")
+          as.data.frame(arrow::read_parquet(f))
+        },
+        json = {
+          .qsr_require("jsonlite", "for JSON files")
+          jsonlite::fromJSON(f, flatten = TRUE)
+        },
+        NULL
+      )
+    }, error = function(e) {
+      cli::cli_alert_warning("Failed to read {.file {basename(f)}}: {e$message}")
+      NULL
+    })
+
+    if (!is.null(df) && nrow(df) > 0) {
+      results[[file_name]] <- df
+      cli::cli_alert_success(
+        "  {.file {basename(f)}}: {.val {nrow(df)}} rows x {.val {ncol(df)}} cols"
+      )
+    }
+  }
+
+  if (length(results) == 0) {
+    cli::cli_abort("No files could be read successfully.")
+  }
+
+  # Stack if requested
+  if (stack && length(results) > 1) {
+    # Add source column to each
+    for (nm in names(results)) {
+      results[[nm]]$`_source` <- nm
+    }
+
+    # rbind with fill (handle different columns across years)
+    all_cols <- unique(unlist(lapply(results, names)))
+    stacked <- do.call(rbind, lapply(results, function(df) {
+      missing <- setdiff(all_cols, names(df))
+      for (col in missing) df[[col]] <- NA
+      df[, all_cols, drop = FALSE]
+    }))
+    rownames(stacked) <- NULL
+
+    cli::cli_alert_success(
+      "Stacked {.val {length(results)}} files: {.val {nrow(stacked)}} total rows"
+    )
+
+    if (register) qsr_data(stacked, name = name)
+    return(invisible(stacked))
+  }
+
+  cli::cli_alert_success(
+    "Loaded {.val {length(results)}} datasets from {.path {basename(path)}}"
+  )
+
+  # Register the first one or the list
+  if (register && length(results) == 1) {
+    qsr_data(results[[1]], name = name)
+  }
+
+  invisible(results)
+}
+
+
 # ---- qsr_download internals ----
 
 #' @keywords internal
