@@ -90,6 +90,12 @@ qsr_download <- function(url,
     name <- gsub("[^a-zA-Z0-9_]", "_", name)
   }
 
+  # Resolve cache dir from context if available
+  ctx_data_path <- .qsr_context$get("data_path")
+  if (!is.null(ctx_data_path)) {
+    cache_dir <- file.path(ctx_data_path, ".cache")
+  }
+
   # Check cache
   if (cache) {
     cached_df <- .qsr_dl_cache_check(name, cache_dir)
