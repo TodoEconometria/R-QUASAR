@@ -46,7 +46,15 @@ Suggests:
     jsonlite,
     readxl,
     httr2,
-    callr
+    callr,
+    ranger,
+    xgboost,
+    e1071,
+    glmnet,
+    rpart,
+    class,
+    forecast,
+    nnet
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 URL: https://github.com/TodoEconometria/R-QUASAR
