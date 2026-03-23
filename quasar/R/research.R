@@ -175,8 +175,11 @@ qsr_download <- function(url,
   tmp <- tempfile(fileext = ext)
 
   tryCatch({
-    resp <- httr2::req_perform(req, path = tmp)
-    cli::cli_alert_info("Downloaded {.val {round(file.info(tmp)$size / 1024 / 1024, 1)}} MB")
+    resp <- httr2::req_perform(req)
+    body <- httr2::resp_body_raw(resp)
+    writeBin(body, tmp)
+    size_mb <- round(length(body) / 1024 / 1024, 1)
+    cli::cli_alert_info("Downloaded {.val {size_mb}} MB")
     tmp
   }, error = function(e) {
     cli::cli_abort(c(
@@ -437,10 +440,20 @@ qsr_panel <- function(...,
   # Sequential merge
   panel <- datasets[[1]]
   for (i in 2:length(datasets)) {
-    # Identify non-key columns that overlap (add suffix)
     src_name <- names(datasets)[i]
-    panel <- merge(panel, datasets[[i]], by = join_by,
-                   all = TRUE, suffixes = c("", paste0(".", src_name)))
+    new_df <- datasets[[i]]
+
+    # Remove columns that are in join_by from new_df duplicates
+    # Keep only join_by + columns NOT already in panel
+    existing_non_key <- setdiff(names(panel), join_by)
+    new_non_key <- setdiff(names(new_df), join_by)
+    truly_new <- setdiff(new_non_key, existing_non_key)
+
+    # Only merge with join_by + truly new columns
+    cols_to_keep <- c(join_by, truly_new)
+    new_df <- new_df[, cols_to_keep, drop = FALSE]
+
+    panel <- merge(panel, new_df, by = join_by, all = TRUE)
   }
 
   # Balance panel if requested
