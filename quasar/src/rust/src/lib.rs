@@ -1,10 +1,28 @@
 use extendr_api::prelude::*;
 use polars::prelude::*;
+use std::sync::Once;
 use std::time::Instant;
 
 // ============================================================
 // QUASAR Rust Backend — Polars-powered data operations
 // ============================================================
+
+// Initialize Polars thread pool ONCE to prevent segfaults
+// when calling multiple Rust functions in the same R session.
+// Rayon's thread pool conflicts with R's single-threaded GC
+// if re-initialized across calls.
+static INIT: Once = Once::new();
+
+fn ensure_polars_init() {
+    INIT.call_once(|| {
+        // Limit threads to avoid race conditions with R's GC.
+        // Even single-threaded, Polars is 5-15x faster than read.csv
+        // thanks to its columnar engine and zero-copy parsing.
+        if std::env::var("POLARS_MAX_THREADS").is_err() {
+            std::env::set_var("POLARS_MAX_THREADS", "1");
+        }
+    });
+}
 
 /// Read a CSV file using Polars (10-30x faster than read.csv).
 /// @param path Character. Path to the CSV file.
@@ -12,6 +30,7 @@ use std::time::Instant;
 /// @export
 #[extendr]
 fn rust_read_csv(path: &str, n_rows: Nullable<i32>) -> List {
+    ensure_polars_init();
     let start = Instant::now();
 
     let mut reader = LazyCsvReader::new(path);
@@ -34,6 +53,7 @@ fn rust_read_csv(path: &str, n_rows: Nullable<i32>) -> List {
 /// @export
 #[extendr]
 fn rust_read_parquet(path: &str) -> List {
+    ensure_polars_init();
     let start = Instant::now();
 
     let args = ScanArgsParquet::default();
@@ -51,6 +71,7 @@ fn rust_read_parquet(path: &str) -> List {
 /// @export
 #[extendr]
 fn rust_describe(path: &str) -> List {
+    ensure_polars_init();
     let df = LazyCsvReader::new(path)
         .finish()
         .expect("Failed to read CSV")
@@ -99,6 +120,7 @@ fn rust_describe(path: &str) -> List {
 /// @export
 #[extendr]
 fn rust_group_agg(path: &str, group_col: &str, agg_col: &str, agg_fn: &str) -> List {
+    ensure_polars_init();
     let start = Instant::now();
 
     let lazy = LazyCsvReader::new(path)
@@ -134,6 +156,7 @@ fn rust_group_agg(path: &str, group_col: &str, agg_col: &str, agg_fn: &str) -> L
 /// @export
 #[extendr]
 fn rust_filter(path: &str, col_name: &str, op: &str, value: f64) -> List {
+    ensure_polars_init();
     let start = Instant::now();
 
     let lazy = LazyCsvReader::new(path)
@@ -166,6 +189,7 @@ fn rust_filter(path: &str, col_name: &str, op: &str, value: f64) -> List {
 /// @export
 #[extendr]
 fn rust_sort(path: &str, by: &str, descending: bool) -> List {
+    ensure_polars_init();
     let start = Instant::now();
 
     let lazy = LazyCsvReader::new(path)
