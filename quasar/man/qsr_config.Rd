@@ -9,6 +9,7 @@ qsr_config(
   random_seed = 42,
   output_format = c("apa7", "chicago", "custom"),
   outlier_threshold = 3,
+  data_path = NULL,
   config_path = NULL,
   ...
 )
