@@ -4,6 +4,70 @@
 # The user calls qsr_read() — Rust does the heavy lifting
 # ============================================================
 
+# Adaptive Process Isolation:
+# - Small files (<10MB): direct call, single thread (fast, zero overhead)
+# - Large files (>10MB): subprocess via callr with ALL CPU cores
+# This prevents segfaults while maximizing performance.
+# Nobody else does this in R.
+
+# Size threshold for switching to subprocess (bytes)
+.QSR_PARALLEL_THRESHOLD <- 10 * 1024 * 1024  # 10 MB
+
+#' Run a Rust/Polars function in an isolated subprocess
+#'
+#' Uses callr to execute Polars operations in a separate R process,
+#' allowing full multi-threading without risk of GC conflicts.
+#'
+#' @param rust_fn Character. Name of the internal Rust function.
+#' @param args List. Arguments to pass to the Rust function.
+#' @param n_cores Integer. Number of cores to use. Default: all available.
+#'
+#' @return The result from the Rust function.
+#'
+#' @keywords internal
+.qsr_run_isolated <- function(rust_fn, args, n_cores = parallel::detectCores()) {
+  callr::r(
+    function(fn_name, fn_args, cores) {
+      Sys.setenv(POLARS_MAX_THREADS = as.character(cores))
+      fn <- get(fn_name, envir = asNamespace("quasar"))
+      do.call(fn, fn_args)
+    },
+    args = list(fn_name = rust_fn, fn_args = args, cores = n_cores),
+    package = "quasar"
+  )
+}
+
+#' Decide whether to run in-process or isolated based on file size
+#'
+#' @param path Character. File path.
+#' @param rust_fn Character. Rust function name.
+#' @param args List. Arguments for the Rust function.
+#'
+#' @return The result from the Rust function.
+#'
+#' @keywords internal
+.qsr_adaptive_call <- function(path, rust_fn, args) {
+  file_size <- file.info(path)$size
+
+  if (!is.na(file_size) && file_size > .QSR_PARALLEL_THRESHOLD &&
+      requireNamespace("callr", quietly = TRUE)) {
+    # Large file: subprocess with full multi-threading
+    tryCatch(
+      .qsr_run_isolated(rust_fn, args),
+      error = function(e) {
+        # Fallback to direct call if subprocess fails
+        # (e.g., package not formally installed during development)
+        fn <- get(rust_fn, envir = asNamespace("quasar"))
+        do.call(fn, args)
+      }
+    )
+  } else {
+    # Small file or callr not available: direct single-threaded call
+    fn <- get(rust_fn, envir = asNamespace("quasar"))
+    do.call(fn, args)
+  }
+}
+
 #' Read data files at high speed using Polars (Rust backend)
 #'
 #' Reads CSV, Parquet, or JSON files using the Polars engine written in Rust.
@@ -80,10 +144,11 @@ qsr_read <- function(path,
     )
   }
 
-  # Call Rust backend
+
+  # Call Rust backend — adaptive: subprocess for large files, direct for small
   result <- switch(format,
-    csv = rust_read_csv(path, n_rows),
-    parquet = rust_read_parquet(path),
+    csv = .qsr_adaptive_call(path, "rust_read_csv", list(path, n_rows)),
+    parquet = .qsr_adaptive_call(path, "rust_read_parquet", list(path)),
     cli::cli_abort("Unsupported format: {.val {format}}")
   )
 
@@ -130,7 +195,7 @@ qsr_fast_summary <- function(path) {
     cli::cli_abort("File not found: {.file {path}}")
   }
 
-  result <- rust_describe(path)
+  result <- .qsr_adaptive_call(path, "rust_describe", list(path))
   df <- data.frame(
     column = result[["column"]],
     count  = result[["count"]],
@@ -184,7 +249,7 @@ qsr_fast_group <- function(path,
 
   fn <- match.arg(fn, c("mean", "sum", "count", "min", "max", "std"))
 
-  result <- rust_group_agg(path, by, col, fn)
+  result <- .qsr_adaptive_call(path, "rust_group_agg", list(path, by, col, fn))
   elapsed <- result[["_elapsed_secs"]]
   data_cols <- setdiff(names(result), c("_elapsed_secs", "_nrows"))
   df <- as.data.frame(result[data_cols], stringsAsFactors = FALSE)
@@ -239,7 +304,7 @@ qsr_fast_filter <- function(path,
 
   op <- match.arg(op, c("gt", "lt", "gte", "lte", "eq", "neq"))
 
-  result <- rust_filter(path, col, op, value)
+  result <- .qsr_adaptive_call(path, "rust_filter", list(path, col, op, value))
   elapsed <- result[["_elapsed_secs"]]
   nrows <- result[["_nrows"]]
   data_cols <- setdiff(names(result), c("_elapsed_secs", "_nrows"))
@@ -286,7 +351,7 @@ qsr_fast_sort <- function(path,
     cli::cli_abort("File not found: {.file {path}}")
   }
 
-  result <- rust_sort(path, by, desc)
+  result <- .qsr_adaptive_call(path, "rust_sort", list(path, by, desc))
   elapsed <- result[["_elapsed_secs"]]
   nrows <- result[["_nrows"]]
   data_cols <- setdiff(names(result), c("_elapsed_secs", "_nrows"))
