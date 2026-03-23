@@ -61,7 +61,16 @@ Suggests:
     plumber,
     eurostat,
     OECD,
-    gtrendsR
+    gtrendsR,
+    haven,
+    arrow,
+    readxl,
+    rvest,
+    tabulapdf,
+    pdftools,
+    sf,
+    terra,
+    exactextractr
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 URL: https://github.com/TodoEconometria/R-QUASAR
