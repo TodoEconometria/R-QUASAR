@@ -544,8 +544,9 @@ qsr_python <- function(package,
 #' Fetch from World Bank via WDI
 #' @noRd
 .qsr_fetch_worldbank <- function(indicator, country = "all",
-                                  start = 2000, end = 2023, ...) {
+                                  start = 1960, end = NULL, ...) {
   .qsr_require("WDI", "for World Bank data")
+  if (is.null(end)) end <- as.integer(format(Sys.Date(), "%Y"))
   df <- WDI::WDI(indicator = indicator, country = country,
                   start = start, end = end, ...)
   # Clean up
