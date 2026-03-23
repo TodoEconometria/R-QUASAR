@@ -335,8 +335,9 @@ qsr_search <- function(query, sources = NULL, limit = 10L) {
 }
 
 #' @noRd
-.qsr_fetch_imf <- function(indicator, country = "all", start = 2000,
-                            end = 2024, ...) {
+.qsr_fetch_imf <- function(indicator, country = "all", start = 1980,
+                            end = NULL, ...) {
+  if (is.null(end)) end <- as.integer(format(Sys.Date(), "%Y"))
   .qsr_require("httr2", "for IMF API")
   .qsr_require("jsonlite", "for JSON parsing")
 
@@ -475,7 +476,8 @@ qsr_search <- function(query, sources = NULL, limit = 10L) {
 }
 
 #' @noRd
-.qsr_fetch_bls <- function(series_id, start_year = 2015, end_year = 2024, ...) {
+.qsr_fetch_bls <- function(series_id, start_year = 2000, end_year = NULL, ...) {
+  if (is.null(end_year)) end_year <- as.integer(format(Sys.Date(), "%Y"))
   .qsr_require("httr2", "for BLS API")
   .qsr_require("jsonlite", "for JSON parsing")
 
