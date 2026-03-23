@@ -398,11 +398,11 @@ qsr_benchmark <- function(path, n_runs = 3L) {
   cli::cli_text("Runs: {.val {n_runs}}")
   cli::cli_text("")
 
-  # Benchmark Rust/Polars
+  # Benchmark Rust/Polars (uses adaptive call for large files)
   rust_times <- numeric(n_runs)
   for (i in seq_len(n_runs)) {
     t0 <- proc.time()["elapsed"]
-    result <- rust_read_csv(path, NULL)
+    result <- .qsr_adaptive_call(path, "rust_read_csv", list(path, NULL))
     rust_times[i] <- proc.time()["elapsed"] - t0
   }
 
