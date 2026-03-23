@@ -203,6 +203,7 @@ qsr_config <- function(significance_level = 0.05,
                        random_seed        = 42,
                        output_format      = c("apa7", "chicago", "custom"),
                        outlier_threshold  = 3,
+                       data_path          = NULL,
                        config_path        = NULL,
                        ...) {
 
@@ -227,6 +228,16 @@ qsr_config <- function(significance_level = 0.05,
   .qsr_context$set("random_seed",        random_seed)
   .qsr_context$set("output_format",      output_format)
   .qsr_context$set("outlier_threshold",  outlier_threshold)
+
+  # Data storage path — defaults to project data/ or user-specified
+  if (!is.null(data_path)) {
+    data_path <- normalizePath(data_path, mustWork = FALSE)
+    if (!dir.exists(data_path)) {
+      dir.create(data_path, recursive = TRUE, showWarnings = FALSE)
+    }
+    .qsr_context$set("data_path", data_path)
+    cli::cli_alert_info("Data storage: {.path {data_path}}")
+  }
 
   # Store any extra parameters
   dots <- list(...)

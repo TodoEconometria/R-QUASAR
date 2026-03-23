@@ -656,7 +656,8 @@ digest_simple <- function(x) {
 #' Read from cache if valid (< 24h)
 #' @noRd
 .qsr_cache_read <- function(key) {
-  cache_dir <- file.path("outputs", ".cache")
+  ctx_path <- .qsr_context$get("data_path")
+  cache_dir <- if (!is.null(ctx_path)) file.path(ctx_path, ".cache") else file.path("outputs", ".cache")
   cache_file <- file.path(cache_dir, paste0(key, ".rds"))
 
   if (!file.exists(cache_file)) return(NULL)
@@ -671,7 +672,8 @@ digest_simple <- function(x) {
 #' Write to cache
 #' @noRd
 .qsr_cache_write <- function(df, key) {
-  cache_dir <- file.path("outputs", ".cache")
+  ctx_path <- .qsr_context$get("data_path")
+  cache_dir <- if (!is.null(ctx_path)) file.path(ctx_path, ".cache") else file.path("outputs", ".cache")
   if (!dir.exists(cache_dir)) {
     dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
   }
