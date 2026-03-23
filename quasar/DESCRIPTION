@@ -58,7 +58,10 @@ Suggests:
     shiny,
     bslib,
     DT,
-    plumber
+    plumber,
+    eurostat,
+    OECD,
+    gtrendsR
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 URL: https://github.com/TodoEconometria/R-QUASAR

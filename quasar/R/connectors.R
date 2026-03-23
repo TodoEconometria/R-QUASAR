@@ -288,12 +288,19 @@ qsr_fetch <- function(source, ..., name = NULL, cache = TRUE) {
 
   source <- tolower(source)
 
-  # Dispatch registry
+  # Dispatch registry — 12 sources
   fetchers <- list(
     worldbank = .qsr_fetch_worldbank,
     fred      = .qsr_fetch_fred,
     census    = .qsr_fetch_census,
-    url       = .qsr_fetch_url
+    url       = .qsr_fetch_url,
+    eurostat  = .qsr_fetch_eurostat,
+    oecd      = .qsr_fetch_oecd,
+    imf       = .qsr_fetch_imf,
+    ine_spain = .qsr_fetch_ine_spain,
+    inegi     = .qsr_fetch_inegi,
+    bls       = .qsr_fetch_bls,
+    gtrends   = .qsr_fetch_gtrends
   )
 
   if (!(source %in% names(fetchers))) {
