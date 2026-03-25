@@ -103,7 +103,7 @@ qsr_table <- function(x          = NULL,
   # Export if requested
   if (!is.null(export)) {
     .qsr_export_table(tbl_gt, export = export, output_dir = output_dir,
-                       caption = caption)
+                       caption = caption, model = x)
   }
 
   # Store in context for qsr_report()
@@ -548,8 +548,12 @@ qsr_report <- function(template      = "journal_article",
 }
 
 #' Export a gt table to multiple formats
+#'
+#' For LaTeX export, uses kableExtra with booktabs for clean academic output.
+#' Falls back to gt::as_latex if kableExtra is not available.
 #' @noRd
-.qsr_export_table <- function(tbl_gt, export, output_dir, caption) {
+.qsr_export_table <- function(tbl_gt, export, output_dir, caption,
+                               model = NULL) {
   if (!dir.exists(output_dir)) {
     dir.create(output_dir, recursive = TRUE)
   }
@@ -569,17 +573,7 @@ qsr_report <- function(template      = "journal_article",
     tryCatch({
       switch(fmt,
         html  = gt::gtsave(tbl_gt, filename = file_path),
-        latex = {
-          latex_str <- tryCatch(
-            gt::as_latex(tbl_gt) |> as.character(),
-            error = function(e) NULL
-          )
-          if (!is.null(latex_str)) {
-            writeLines(latex_str, con = file_path)
-          } else {
-            cli::cli_alert_warning("gt LaTeX failed, using modelsummary fallback")
-          }
-        },
+        latex = .qsr_export_latex(tbl_gt, file_path, caption, model),
         word  = gt::gtsave(tbl_gt, filename = file_path),
         rtf   = gt::gtsave(tbl_gt, filename = file_path)
       )
@@ -588,6 +582,51 @@ qsr_report <- function(template      = "journal_article",
       cli::cli_alert_warning("Export {.val {fmt}} failed: {e$message}")
     })
   }
+}
+
+#' Export table to LaTeX using kableExtra (booktabs) or gt fallback
+#' @noRd
+.qsr_export_latex <- function(tbl_gt, file_path, caption, model) {
+  # Strategy 1: If model object available, use kableExtra for clean booktabs
+  if (!is.null(model) && .qsr_has_pkg("kableExtra")) {
+    cf <- summary(model)$coefficients
+    if (!is.null(cf)) {
+      make_stars <- function(p) {
+        ifelse(is.na(p), "",
+          ifelse(p < 0.001, "***",
+            ifelse(p < 0.01, "**",
+              ifelse(p < 0.05, "*", ""))))
+      }
+      tab_df <- data.frame(
+        Variable = rownames(cf),
+        Coefficient = sprintf("%.4f%s", cf[, 1], make_stars(cf[, 4])),
+        SE = sprintf("(%.4f)", cf[, 2])
+      )
+      tex <- kableExtra::kbl(tab_df, format = "latex", booktabs = TRUE,
+                              caption = caption, escape = FALSE,
+                              col.names = c("Variable", "Coef.", "Std. Err.")) |>
+        kableExtra::kable_styling(latex_options = "hold_position")
+      writeLines(tex, con = file_path)
+      return(invisible(NULL))
+    }
+  }
+
+  # Strategy 2: gt::as_latex fallback
+  latex_str <- tryCatch(
+    gt::as_latex(tbl_gt) |> as.character(),
+    error = function(e) NULL
+  )
+  if (!is.null(latex_str)) {
+    writeLines(latex_str, con = file_path)
+  } else {
+    cli::cli_alert_warning("LaTeX export failed — install {.pkg kableExtra} for best results")
+  }
+}
+
+#' Check if a package is available (no error)
+#' @noRd
+.qsr_has_pkg <- function(pkg) {
+  requireNamespace(pkg, quietly = TRUE)
 }
 
 

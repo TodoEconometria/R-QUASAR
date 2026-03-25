@@ -20,7 +20,8 @@ qsr_report(
 \code{"technical_report"}, \code{"slides"}. Default \code{"journal_article"}.}
 
 \item{journal}{Character. Target journal formatting. If \code{NULL},
-reads from context. One of \code{"r_journal"}, \code{"jss"}, \code{"apsr"}.}
+reads from context. One of \code{"jde"} (Journal of Development Economics),
+\code{"r_journal"} (The R Journal), \code{"econometrica"}, \code{"jss"}, \code{"apsr"}.}
 
 \item{output_format}{Character. Output format: \code{"html"}, \code{"pdf"}, \code{"word"}.
 Default \code{"html"}.}

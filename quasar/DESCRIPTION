@@ -68,6 +68,8 @@ Suggests:
     rvest,
     tabulapdf,
     pdftools,
+    kableExtra,
+    modelsummary,
     sf,
     terra,
     exactextractr
