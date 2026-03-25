@@ -427,10 +427,18 @@ qsr_report <- function(template      = "journal_article",
   if (stars) {
     tbl <- gtsummary::add_significance_stars(tbl)
   }
-  tbl <- gtsummary::add_glance_table(
-    tbl,
-    include = c("r.squared", "adj.r.squared", "nobs", "AIC", "BIC")
-  )
+  # Add model fit statistics — only those available for this model type
+  tryCatch({
+    glance_stats <- broom::glance(x)
+    available <- intersect(
+      c("r.squared", "adj.r.squared", "nobs", "AIC", "BIC",
+        "logLik", "deviance", "null.deviance", "df.residual"),
+      names(glance_stats)
+    )
+    if (length(available) > 0) {
+      tbl <- gtsummary::add_glance_table(tbl, include = available)
+    }
+  }, error = function(e) NULL)
   tbl
 }
 
@@ -555,15 +563,29 @@ qsr_report <- function(template      = "journal_article",
                       several.ok = TRUE)
 
   for (fmt in export) {
-    file_path <- file.path(output_dir, paste0(base_name, ".", fmt))
-    switch(fmt,
-      html  = gt::gtsave(tbl_gt, filename = file_path),
-      latex = gt::as_latex(tbl_gt) |> as.character() |>
-                writeLines(con = file_path),
-      word  = gt::gtsave(tbl_gt, filename = file_path),
-      rtf   = gt::gtsave(tbl_gt, filename = file_path)
-    )
-    cli::cli_alert_info("Exported: {.path {file_path}}")
+    ext <- if (fmt == "latex") "tex" else fmt
+    file_path <- file.path(output_dir, paste0(base_name, ".", ext))
+    tryCatch({
+      switch(fmt,
+        html  = gt::gtsave(tbl_gt, filename = file_path),
+        latex = {
+          latex_str <- tryCatch(
+            gt::as_latex(tbl_gt) |> as.character(),
+            error = function(e) NULL
+          )
+          if (!is.null(latex_str)) {
+            writeLines(latex_str, con = file_path)
+          } else {
+            cli::cli_alert_warning("gt LaTeX failed, using modelsummary fallback")
+          }
+        },
+        word  = gt::gtsave(tbl_gt, filename = file_path),
+        rtf   = gt::gtsave(tbl_gt, filename = file_path)
+      )
+      cli::cli_alert_info("Exported: {.path {file_path}}")
+    }, error = function(e) {
+      cli::cli_alert_warning("Export {.val {fmt}} failed: {e$message}")
+    })
   }
 }
 
