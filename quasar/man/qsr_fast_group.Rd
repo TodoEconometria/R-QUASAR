@@ -31,7 +31,7 @@ qsr_fast_group(
 A data.frame with grouped results (invisibly).
 }
 \description{
-Performs group-by operations directly on a file using Polars — no need
+Performs group-by operations directly on a file using Polars - no need
 to load the full dataset into R first.
 }
 \examples{

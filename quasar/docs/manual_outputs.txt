@@ -1,0 +1,277 @@
+## ============================================================
+## EXAMPLE 1: Context Engine — Zero-argument workflow
+## Dataset: wooldridge::wage1 (526 workers, wage determinants)
+## ============================================================
+
+# Register data
+> qsr_data(wage1)
+
+# Fit model — Mincer equation
+> qsr_model(log(wage) ~ educ + exper + I(exper^2) + tenure + female + nonwhite)
+
+# Get table — zero arguments, reads from context
+> qsr_table()
+Table generated: gt_tbl 
+
+
+## ============================================================
+## EXAMPLE 2: Statistical Tests
+## Dataset: wooldridge::sleep75 (706 individuals, sleep patterns)
+## ============================================================
+
+# t-test: Do men sleep more than women?
+> qsr_test(sleep ~ male, test = 't')
+$test
+[1] "Welch Two Sample t-test"
+
+$formula
+[1] "sleep ~ male"
+
+$statistic
+[1] 0.9474052
+
+$p_value
+[1] 0.3437898
+
+$estimate
+[1] 3284.588 3252.407
+
+$conf_int
+[1] -34.51991  98.88138
+attr(,"conf.level")
+[1] 0.95
+
+$significant
+[1] FALSE
+
+$raw
+
+	Welch Two Sample t-test
+
+data:  y by x
+t = 0.94741, df = 640.24, p-value = 0.3438
+alternative hypothesis: true difference in means between group 0 and group 1 is not equal to 0
+95 percent confidence interval:
+ -34.51991  98.88138
+sample estimates:
+mean in group 0 mean in group 1 
+       3284.588        3252.407 
+
+
+
+# Normality test
+> qsr_test(totwrk, test = 'shapiro')
+$test
+[1] "Shapiro-Wilk normality test"
+
+$formula
+[1] "totwrk"
+
+$statistic
+[1] 0.9664587
+
+$p_value
+[1] 1.230244e-11
+
+$estimate
+NULL
+
+$conf_int
+NULL
+
+$significant
+[1] TRUE
+
+$raw
+
+	Shapiro-Wilk normality test
+
+data:  samp
+W = 0.96646, p-value = 1.23e-11
+
+
+
+# Correlation
+> qsr_test(sleep ~ totwrk, test = 'correlation')
+$test
+[1] "Pearson's product-moment correlation"
+
+$formula
+[1] "sleep ~ totwrk"
+
+$statistic
+[1] -9.004992
+
+$p_value
+[1] 1.994095e-18
+
+$estimate
+[1] -0.3213835
+
+$conf_int
+[1] -0.3860166 -0.2536106
+attr(,"conf.level")
+[1] 0.95
+
+$significant
+[1] TRUE
+
+$raw
+
+	Pearson's product-moment correlation
+
+data:  y and x
+t = -9.005, df = 704, p-value < 2.2e-16
+alternative hypothesis: true correlation is not equal to 0
+95 percent confidence interval:
+ -0.3860166 -0.2536106
+sample estimates:
+       cor 
+-0.3213835 
+
+
+
+
+## ============================================================
+## EXAMPLE 3: Data Cleaning
+## Dataset: wooldridge::hprice1 (88 houses, hedonic pricing)
+## ============================================================
+
+# Original data
+Rows: 88 | Cols: 10 
+NAs per column:
+   price   assess    bdrms  lotsize    sqrft colonial   lprice  lassess 
+       0        0        0        0        0        0        0        0 
+llotsize   lsqrft 
+       0        0 
+
+# Clean with outlier detection
+> qsr_data(hprice1)
+> qsr_clean(outliers = 'winsorize', normalize = 'none')
+Cleaned rows: 88 
+
+
+## ============================================================
+## EXAMPLE 4: Machine Learning — Wage prediction
+## Dataset: wooldridge::wage2 (935 workers)
+## ============================================================
+
+# Random Forest
+> qsr_ml(log(wage) ~ educ + exper + tenure + married + black + south + urban, method = 'rf')
+RF results:
+
+# Cross-validation on linear model
+> qsr_model(log(wage) ~ educ + exper + tenure + married + black + south + urban)
+> qsr_cv(folds = 5)
+$method
+[1] "rf"
+
+$k
+[1] 10
+
+$metric
+[1] "rmse"
+
+$rmse
+[1] 1033.432
+
+$r2
+[1] -5.538687
+
+
+
+## ============================================================
+## EXAMPLE 5: Time Series
+## Dataset: wooldridge::intdef (56 years, interest + inflation)
+## ============================================================
+
+# ARIMA on inflation rate
+> qsr_ts(intdef, y = 'inf', method = 'hw')
+
+
+## ============================================================
+## EXAMPLE 6: Multi-model comparison
+## Dataset: wooldridge::bwght (1388 births, birth weight)
+## ============================================================
+
+# Model 1: Simple OLS
+# Model 2: + mother's education
+# Model 3: + demographics
+
+> qsr_table(list(m1, m2, m3), type = 'comparison')
+
+Model comparison:
+
++-------------+------------+------------+---------------+
+|             | Simple     | +Education | +Demographics |
++=============+============+============+===============+
+| (Intercept) | 116.974*** | 118.074*** | 113.005***    |
++-------------+------------+------------+---------------+
+|             | (1.049)    | (3.500)    | (3.706)       |
++-------------+------------+------------+---------------+
+| cigs        | -0.463***  | -0.589***  | -0.591***     |
++-------------+------------+------------+---------------+
+|             | (0.092)    | (0.111)    | (0.110)       |
++-------------+------------+------------+---------------+
+| faminc      | 0.093**    | 0.054      | 0.042         |
++-------------+------------+------------+---------------+
+|             | (0.029)    | (0.037)    | (0.037)       |
++-------------+------------+------------+---------------+
+| motheduc    |            | -0.438     | -0.402        |
++-------------+------------+------------+---------------+
+|             |            | (0.320)    | (0.318)       |
++-------------+------------+------------+---------------+
+| fatheduc    |            | 0.494      | 0.436         |
++-------------+------------+------------+---------------+
+|             |            | (0.283)    | (0.282)       |
++-------------+------------+------------+---------------+
+| male        |            |            | 3.716**       |
++-------------+------------+------------+---------------+
+|             |            |            | (1.146)       |
++-------------+------------+------------+---------------+
+| white       |            |            | 4.519**       |
++-------------+------------+------------+---------------+
+|             |            |            | (1.611)       |
++-------------+------------+------------+---------------+
+| Num.Obs.    | 1388       | 1191       | 1191          |
++-------------+------------+------------+---------------+
+| R2          | 0.030      | 0.033      | 0.047         |
++-------------+------------+------------+---------------+
+| R2 Adj.     | 0.028      | 0.030      | 0.042         |
++=============+============+============+===============+
+| * p < 0.05, ** p < 0.01, *** p < 0.001                |
++=============+============+============+===============+ 
+
+
+## ============================================================
+## EXAMPLE 7: Probit — Labor force participation
+## Dataset: wooldridge::mroz (753 married women)
+## ============================================================
+
+# Probit: P(inlf=1) — probability of being in labor force
+> qsr_model(inlf ~ nwifeinc + educ + exper + I(exper^2) + age + kidslt6 + kidsge6, family='probit')
+
+Variable                 Coef         SE        z   Sig
+------------------------------------------------------- 
+(Intercept)            0.2701     0.5081     0.53      
+nwifeinc              -0.0120     0.0049    -2.43     *
+educ                   0.1309     0.0254     5.15   ***
+exper                  0.1233     0.0188     6.58   ***
+I(exper^2)            -0.0019     0.0006    -3.15    **
+age                   -0.0529     0.0085    -6.25   ***
+kidslt6               -0.8683     0.1184    -7.34   ***
+kidsge6                0.0360     0.0440     0.82      
+
+N = 753 | Pseudo-R2 = 0.2206 
+
+# Average Partial Effects (margins)
+> margins::margins(probit)
+
+Variable                  APE
+------------------------------ 
+age                   -0.0159
+educ                   0.0394
+exper                  0.0256
+kidsge6                0.0108
+kidslt6               -0.2612
+nwifeinc              -0.0036

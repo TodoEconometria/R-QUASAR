@@ -23,12 +23,14 @@ qsr_config(
 
 \item{outlier_threshold}{Numeric. SD threshold for outlier detection. Default 3.}
 
+\item{data_path}{Character. Optional path for storing downloaded data and cache.}
+
 \item{config_path}{Character. Optional path to a YAML config file.}
 
 \item{...}{Additional named parameters stored in context.}
 }
 \value{
-Invisible — the global context object.
+Invisible - the global context object.
 }
 \description{
 Defines the project context once. All QUASAR functions read from

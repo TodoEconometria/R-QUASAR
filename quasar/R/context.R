@@ -1,4 +1,4 @@
-#' QUASAR Context — Global project configuration and object store
+#' QUASAR Context - Global project configuration and object store
 #' @noRd
 QuasarContext <- R6::R6Class(
   classname = "QuasarContext",
@@ -174,7 +174,7 @@ QuasarContext <- R6::R6Class(
   )
 )
 
-# Global singleton instance — one per R session
+# Global singleton instance - one per R session
 .qsr_context <- QuasarContext$new()
 
 
@@ -187,10 +187,11 @@ QuasarContext <- R6::R6Class(
 #' @param random_seed Integer. Random seed for reproducibility. Default 42.
 #' @param output_format Character. Output format. One of "apa7", "chicago", "custom".
 #' @param outlier_threshold Numeric. SD threshold for outlier detection. Default 3.
+#' @param data_path Character. Optional path for storing downloaded data and cache.
 #' @param config_path Character. Optional path to a YAML config file.
 #' @param ... Additional named parameters stored in context.
 #'
-#' @return Invisible — the global context object.
+#' @return Invisible - the global context object.
 #' @export
 #'
 #' @examples
@@ -229,7 +230,7 @@ qsr_config <- function(significance_level = 0.05,
   .qsr_context$set("output_format",      output_format)
   .qsr_context$set("outlier_threshold",  outlier_threshold)
 
-  # Data storage path — defaults to project data/ or user-specified
+  # Data storage path - defaults to project data/ or user-specified
   if (!is.null(data_path)) {
     data_path <- normalizePath(data_path, mustWork = FALSE)
     if (!dir.exists(data_path)) {
@@ -265,7 +266,7 @@ qsr_config <- function(significance_level = 0.05,
 #' @param data A data frame.
 #' @param name Character. Optional display name for the dataset.
 #'
-#' @return Invisible — the data frame.
+#' @return Invisible - the data frame.
 #' @export
 #'
 #' @examples
@@ -293,7 +294,7 @@ qsr_data <- function(data, name = NULL) {
 #' Fit a model with minimal syntax
 #'
 #' Fits a statistical model using the active dataset from context.
-#' No need to pass data — QUASAR already knows it.
+#' No need to pass data - QUASAR already knows it.
 #'
 #' @param formula A model formula (e.g., `mpg ~ wt + hp`).
 #' @param type Character. Model type: `"lm"`, `"glm"`, `"logit"`, `"probit"`.

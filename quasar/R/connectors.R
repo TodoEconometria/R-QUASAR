@@ -1,5 +1,5 @@
 # ============================================================
-# QUASAR — Layer 3: Connectors
+# QUASAR - Layer 3: Connectors
 # qsr_db(), qsr_spark(), qsr_fetch(), qsr_python()
 # Zero-friction access to databases, Spark, APIs, and Python
 # ============================================================
@@ -29,7 +29,7 @@
 #' Connect to a database and load data
 #'
 #' One-line database access. Connects, queries, and registers the result
-#' in context automatically. Uses SQLite in-memory by default — zero setup.
+#' in context automatically. Uses SQLite in-memory by default - zero setup.
 #'
 #' @param driver Character. Database driver: `"sqlite"`, `"postgres"`,
 #'   `"mysql"`, `"odbc"`. Default `"sqlite"`.
@@ -288,7 +288,7 @@ qsr_fetch <- function(source, ..., name = NULL, cache = TRUE) {
 
   source <- tolower(source)
 
-  # Dispatch registry — 12 sources
+  # Dispatch registry - 12 sources
   fetchers <- list(
     worldbank = .qsr_fetch_worldbank,
     fred      = .qsr_fetch_fred,
@@ -355,7 +355,7 @@ qsr_fetch <- function(source, ..., name = NULL, cache = TRUE) {
 #' Run Python code from R
 #'
 #' Zero-friction Python interop. Import modules, call functions,
-#' fit sklearn/prophet models — all without touching reticulate directly.
+#' fit sklearn/prophet models - all without touching reticulate directly.
 #'
 #' @param package Character. Python module to import (e.g., `"prophet"`,
 #'   `"sklearn.linear_model"`).
@@ -478,7 +478,7 @@ qsr_python <- function(package,
 
 
 # ============================================================
-# INTERNAL HELPERS — Database
+# INTERNAL HELPERS - Database
 # ============================================================
 
 #' Get DBI driver object from string
@@ -516,7 +516,7 @@ qsr_python <- function(package,
 
 
 # ============================================================
-# INTERNAL HELPERS — Spark
+# INTERNAL HELPERS - Spark
 # ============================================================
 
 #' Detect file format from extension
@@ -538,7 +538,7 @@ qsr_python <- function(package,
 
 
 # ============================================================
-# INTERNAL HELPERS — Fetch (API dispatchers)
+# INTERNAL HELPERS - Fetch (API dispatchers)
 # ============================================================
 
 #' Fetch from World Bank via WDI
@@ -632,7 +632,7 @@ qsr_python <- function(package,
 
 
 # ============================================================
-# INTERNAL HELPERS — Cache
+# INTERNAL HELPERS - Cache
 # ============================================================
 
 #' Generate cache key from arguments
@@ -683,7 +683,7 @@ digest_simple <- function(x) {
 
 
 # ============================================================
-# INTERNAL HELPERS — Python
+# INTERNAL HELPERS - Python
 # ============================================================
 
 #' Ensure Python virtualenv exists

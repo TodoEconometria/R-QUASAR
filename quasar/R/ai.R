@@ -1,5 +1,5 @@
 # ============================================================
-# QUASAR — AI Module
+# QUASAR - AI Module
 # qsr_ai_review(), qsr_ai_classify(), qsr_ai_flag()
 # Uses Claude API for intelligent codebook review,
 # text classification, and data quality checks.
@@ -273,7 +273,7 @@ qsr_ai_flag <- function(data,
       })
       means <- vapply(by_year, `[`, numeric(1), "mean")
       if (any(diff(means) / means[-length(means)] > 2, na.rm = TRUE)) {
-        s <- sprintf("  → %s has >2x jump between consecutive years!", col)
+        s <- sprintf("  -> %s has >2x jump between consecutive years!", col)
         summary_text <- c(summary_text, s)
       }
     }
@@ -332,7 +332,7 @@ Focus on: impossible values, distribution anomalies, sudden jumps between waves,
 
 
 # ============================================================
-# INTERNAL HELPERS — AI
+# INTERNAL HELPERS - AI
 # ============================================================
 
 #' Call Claude API

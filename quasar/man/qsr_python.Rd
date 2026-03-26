@@ -44,7 +44,7 @@ The Python object or prediction results (invisibly).
 }
 \description{
 Zero-friction Python interop. Import modules, call functions,
-fit sklearn/prophet models — all without touching reticulate directly.
+fit sklearn/prophet models - all without touching reticulate directly.
 }
 \examples{
 \dontrun{

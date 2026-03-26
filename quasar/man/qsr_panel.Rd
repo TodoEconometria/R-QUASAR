@@ -57,7 +57,7 @@ qsr_download("https://dataunodc.un.org/.../coca.xlsx", name = "unodc")
 qsr_fetch("worldbank", indicator = "NY.GDP.PCAP.KD",
           country = c("BOL", "PER", "COL"), name = "wb_gdp")
 
-# Build panel — joins by country + year
+# Build panel - joins by country + year
 qsr_panel(
   sources = c("unodc", "wb_gdp"),
   join_by = c("country", "year"),

@@ -14,7 +14,7 @@ A data.frame comparison table (invisibly). Also printed.
 }
 \description{
 Compares all models stored in context (or specified models) using
-standard metrics: AIC, BIC, R², RMSE, accuracy.
+standard metrics: AIC, BIC, R2, RMSE, accuracy.
 }
 \examples{
 \dontrun{

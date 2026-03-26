@@ -12,7 +12,7 @@ qsr_data(data, name = NULL)
 \item{name}{Character. Optional display name for the dataset.}
 }
 \value{
-Invisible — the data frame.
+Invisible - the data frame.
 }
 \description{
 Stores a data frame in the QUASAR context so all downstream functions

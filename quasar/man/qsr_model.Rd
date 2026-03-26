@@ -33,7 +33,7 @@ The fitted model object (also stored in context).
 }
 \description{
 Fits a statistical model using the active dataset from context.
-No need to pass data — QUASAR already knows it.
+No need to pass data - QUASAR already knows it.
 }
 \examples{
 \dontrun{
