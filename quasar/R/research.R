@@ -1,17 +1,17 @@
 # ============================================================
-# QUASAR — Research Data Platform
+# QUASAR - Research Data Platform
 # qsr_download(), qsr_panel(), qsr_scrape(), qsr_spatial()
 #
 # "From 830 lines of data wrangling to 30."
 #
 # This is what makes QUASAR different from every other R package.
-# Not shortcuts for existing functions — solutions for problems
+# Not shortcuts for existing functions - solutions for problems
 # that have NO one-liner in R today.
 # ============================================================
 
 
 # ============================================================
-# qsr_download() — Universal research data downloader
+# qsr_download() - Universal research data downloader
 # ============================================================
 
 #' Download any research data file with one line
@@ -144,7 +144,7 @@ qsr_download <- function(url,
 
 
 # ============================================================
-# qsr_load_folder() — Read all data files from a folder
+# qsr_load_folder() - Read all data files from a folder
 # ============================================================
 
 #' Load all data files from a folder
@@ -513,7 +513,7 @@ qsr_load_folder <- function(path,
 
 
 # ============================================================
-# qsr_panel() — Build research panels from multiple sources
+# qsr_panel() - Build research panels from multiple sources
 # ============================================================
 
 #' Build a research panel from multiple data sources
@@ -550,7 +550,7 @@ qsr_load_folder <- function(path,
 #' qsr_fetch("worldbank", indicator = "NY.GDP.PCAP.KD",
 #'           country = c("BOL", "PER", "COL"), name = "wb_gdp")
 #'
-#' # Build panel — joins by country + year
+#' # Build panel - joins by country + year
 #' qsr_panel(
 #'   sources = c("unodc", "wb_gdp"),
 #'   join_by = c("country", "year"),
@@ -690,7 +690,7 @@ qsr_panel <- function(...,
 
 
 # ============================================================
-# qsr_scrape() — Extract tables from PDFs and HTML
+# qsr_scrape() - Extract tables from PDFs and HTML
 # ============================================================
 
 #' Extract data tables from PDFs or web pages
@@ -877,7 +877,7 @@ qsr_scrape <- function(source,
 
 
 # ============================================================
-# qsr_spatial() — Simplified spatial data operations
+# qsr_spatial() - Simplified spatial data operations
 # ============================================================
 
 #' Read and process spatial data

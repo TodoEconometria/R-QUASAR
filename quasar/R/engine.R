@@ -1,7 +1,7 @@
 # ============================================================
-# QUASAR — Rust-Powered Engine (Phase 2)
+# QUASAR - Rust-Powered Engine (Phase 2)
 # High-performance data operations via Polars
-# The user calls qsr_read() — Rust does the heavy lifting
+# The user calls qsr_read() - Rust does the heavy lifting
 # ============================================================
 
 # Adaptive Process Isolation:
@@ -90,7 +90,7 @@
 #'   `register = TRUE`.
 #'
 #' @details
-#' The Rust backend uses Polars lazy evaluation — it only reads the columns
+#' The Rust backend uses Polars lazy evaluation - it only reads the columns
 #' and rows you need, which makes it extremely efficient for large files.
 #'
 #' Supported formats:
@@ -99,7 +99,7 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Read a CSV — 10-30x faster than read.csv
+#' # Read a CSV - 10-30x faster than read.csv
 #' qsr_read("data/large_file.csv")
 #'
 #' # Read only specific columns
@@ -111,7 +111,7 @@
 #' # Read Parquet (auto-detected from extension)
 #' qsr_read("data/results.parquet")
 #'
-#' # After qsr_read(), data is in context — use qsr_table(), qsr_plot() directly
+#' # After qsr_read(), data is in context - use qsr_table(), qsr_plot() directly
 #' qsr_read("data/survey.csv")
 #' qsr_table(type = "summary")
 #' qsr_plot(type = "correlation")
@@ -145,7 +145,7 @@ qsr_read <- function(path,
   }
 
 
-  # Call Rust backend — adaptive: subprocess for large files, direct for small
+  # Call Rust backend - adaptive: subprocess for large files, direct for small
   result <- switch(format,
     csv = .qsr_adaptive_call(path, "rust_read_csv", list(path, n_rows)),
     parquet = .qsr_adaptive_call(path, "rust_read_parquet", list(path)),
@@ -213,7 +213,7 @@ qsr_fast_summary <- function(path) {
 
 #' Fast group-by aggregation using Polars (Rust backend)
 #'
-#' Performs group-by operations directly on a file using Polars — no need
+#' Performs group-by operations directly on a file using Polars - no need
 #' to load the full dataset into R first.
 #'
 #' @param path Character. Path to a CSV file.
@@ -268,7 +268,7 @@ qsr_fast_group <- function(path,
 
 #' Fast filter using Polars (Rust backend)
 #'
-#' Filters rows from a file directly using Polars — processes the file
+#' Filters rows from a file directly using Polars - processes the file
 #' without loading it entirely into R memory.
 #'
 #' @param path Character. Path to a CSV file.
@@ -286,7 +286,7 @@ qsr_fast_group <- function(path,
 #' # Filter large dataset without loading into memory
 #' qsr_fast_filter("data/sales.csv", col = "amount", op = "gt", value = 1000)
 #'
-#' # Chain: filter → table
+#' # Chain: filter -> table
 #' qsr_fast_filter("data/survey.csv", col = "age", op = "gte", value = 18)
 #' qsr_table(type = "summary")
 #' }

@@ -1,5 +1,5 @@
 # ============================================================
-# QUASAR — Data Sources Registry
+# QUASAR - Data Sources Registry
 # qsr_search() + expanded qsr_fetch() dispatchers
 # "Find any research data in one line."
 # ============================================================
@@ -318,7 +318,7 @@ qsr_search <- function(query, sources = NULL, limit = 10L) {
 #' @noRd
 .qsr_download_guides <- list(
   ine_bolivia = list(
-    name = "INE Bolivia — Encuestas de Hogares",
+    name = "INE Bolivia - Encuestas de Hogares",
     url = "https://anda.ine.gob.bo/index.php/catalog",
     auth = "registration + form",
     steps = c(
@@ -337,7 +337,7 @@ qsr_search <- function(query, sources = NULL, limit = 10L) {
     )
   ),
   inei_peru = list(
-    name = "INEI Peru — ENAHO",
+    name = "INEI Peru - ENAHO",
     url = "https://iinei.inei.gob.pe/microdatos/",
     auth = "direct download (navigate portal)",
     steps = c(
@@ -350,7 +350,7 @@ qsr_search <- function(query, sources = NULL, limit = 10L) {
     then = 'qsr_load_folder("E:/quasar_data/raw/peru/", pattern = "601", extract_zips = TRUE)'
   ),
   dane_colombia = list(
-    name = "DANE Colombia — ENCV/GEIH",
+    name = "DANE Colombia - ENCV/GEIH",
     url = "https://microdatos.dane.gov.co/",
     auth = "registration + download",
     steps = c(
@@ -362,7 +362,7 @@ qsr_search <- function(query, sources = NULL, limit = 10L) {
     then = 'qsr_load_folder("E:/quasar_data/raw/colombia/", extract_zips = TRUE)'
   ),
   lapop = list(
-    name = "LAPOP — Latin American Public Opinion Project",
+    name = "LAPOP - Latin American Public Opinion Project",
     url = "https://www.vanderbilt.edu/lapop/data-access.php",
     auth = "formal request (1-2 weeks)",
     steps = c(
@@ -375,7 +375,7 @@ qsr_search <- function(query, sources = NULL, limit = 10L) {
     then = 'qsr_load_folder("E:/quasar_data/raw/lapop/", extract_zips = TRUE)'
   ),
   pnis_colombia = list(
-    name = "ARN Colombia — PNIS beneficiary data",
+    name = "ARN Colombia - PNIS beneficiary data",
     url = "https://www.renovacionterritorio.gov.co/",
     auth = "formal written request (1-3 months)",
     steps = c(

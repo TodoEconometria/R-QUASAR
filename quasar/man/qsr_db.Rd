@@ -53,7 +53,7 @@ A data frame (invisibly) or a DBI connection if \code{.conn = TRUE}.
 }
 \description{
 One-line database access. Connects, queries, and registers the result
-in context automatically. Uses SQLite in-memory by default — zero setup.
+in context automatically. Uses SQLite in-memory by default - zero setup.
 }
 \examples{
 \dontrun{

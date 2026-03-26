@@ -1,7 +1,7 @@
 # ============================================================
-# QUASAR — Machine Learning Layer
+# QUASAR - Machine Learning Layer
 # qsr_ml(), qsr_cv(), qsr_compare()
-# "Neural nets, XGBoost, Random Forest — all in one line."
+# "Neural nets, XGBoost, Random Forest - all in one line."
 # ============================================================
 
 #' Fit machine learning models with one line
@@ -17,7 +17,7 @@
 #'     \item{"rf"}{Random Forest (ranger)}
 #'     \item{"xgboost"}{Gradient Boosting (xgboost)}
 #'     \item{"svm"}{Support Vector Machine (e1071)}
-#'     \item{"nn"}{Neural Network (nnet — single hidden layer)}
+#'     \item{"nn"}{Neural Network (nnet - single hidden layer)}
 #'     \item{"knn"}{K-Nearest Neighbors (class)}
 #'     \item{"lasso"}{Lasso Regression (glmnet, alpha=1)}
 #'     \item{"ridge"}{Ridge Regression (glmnet, alpha=0)}
@@ -357,7 +357,7 @@ qsr_ml <- function(formula = NULL,
 
 
 # ============================================================
-# qsr_cv() — Cross-validation
+# qsr_cv() - Cross-validation
 # ============================================================
 
 #' Cross-validate a model with one line
@@ -397,7 +397,12 @@ qsr_cv <- function(formula = NULL,
   df <- as.data.frame(data)
 
   if (is.null(formula)) {
-    cli::cli_abort("A formula is required for cross-validation.")
+    model <- .qsr_context$get_model()
+    if (!is.null(model) && !is.null(model$terms)) {
+      formula <- formula(model)
+    } else {
+      cli::cli_abort("A formula is required for cross-validation. Pass one or use {.fn qsr_model} first.")
+    }
   }
 
   seed <- .qsr_context$get("random_seed") %||% 42
@@ -495,13 +500,13 @@ qsr_cv <- function(formula = NULL,
 
 
 # ============================================================
-# qsr_compare() — Model comparison
+# qsr_compare() - Model comparison
 # ============================================================
 
 #' Compare multiple models side by side
 #'
 #' Compares all models stored in context (or specified models) using
-#' standard metrics: AIC, BIC, R², RMSE, accuracy.
+#' standard metrics: AIC, BIC, R2, RMSE, accuracy.
 #'
 #' @param ... Named model objects. If empty, uses all models from context.
 #'

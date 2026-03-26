@@ -24,7 +24,7 @@ qsr_ml(
 \item{"rf"}{Random Forest (ranger)}
 \item{"xgboost"}{Gradient Boosting (xgboost)}
 \item{"svm"}{Support Vector Machine (e1071)}
-\item{"nn"}{Neural Network (nnet — single hidden layer)}
+\item{"nn"}{Neural Network (nnet - single hidden layer)}
 \item{"knn"}{K-Nearest Neighbors (class)}
 \item{"lasso"}{Lasso Regression (glmnet, alpha=1)}
 \item{"ridge"}{Ridge Regression (glmnet, alpha=0)}

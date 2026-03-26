@@ -1,5 +1,5 @@
 # ============================================================
-# QUASAR — Analytics Layer
+# QUASAR - Analytics Layer
 # qsr_clean(), qsr_test(), qsr_feature()
 # "If it's complex in R, QUASAR makes it one line."
 # ============================================================
@@ -356,6 +356,8 @@ qsr_test <- function(formula = NULL,
       .qsr_format_test(res, test, y_name, x_name)
     },
     shapiro = {
+      y <- as.numeric(y)
+      y <- y[!is.na(y)]
       samp <- if (length(y) > 5000) sample(y, 5000) else y
       res <- stats::shapiro.test(samp)
       .qsr_format_test(res, test, y_name, NULL)

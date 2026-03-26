@@ -1,7 +1,7 @@
 # ============================================================
-# QUASAR — Time Series Layer
+# QUASAR - Time Series Layer
 # qsr_ts()
-# "ARIMA, decomposition, forecasting — one line."
+# "ARIMA, decomposition, forecasting - one line."
 # ============================================================
 
 #' Fit and forecast time series models

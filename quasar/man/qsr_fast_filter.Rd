@@ -24,7 +24,7 @@ qsr_fast_filter(path, col, op, value, name = "filtered_data", register = TRUE)
 A data.frame with filtered results (invisibly).
 }
 \description{
-Filters rows from a file directly using Polars — processes the file
+Filters rows from a file directly using Polars - processes the file
 without loading it entirely into R memory.
 }
 \examples{
@@ -32,7 +32,7 @@ without loading it entirely into R memory.
 # Filter large dataset without loading into memory
 qsr_fast_filter("data/sales.csv", col = "amount", op = "gt", value = 1000)
 
-# Chain: filter → table
+# Chain: filter -> table
 qsr_fast_filter("data/survey.csv", col = "age", op = "gte", value = 18)
 qsr_table(type = "summary")
 }

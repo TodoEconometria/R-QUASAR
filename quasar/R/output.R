@@ -1,5 +1,5 @@
 # ============================================================
-# QUASAR — Layer 4: Output Engine
+# QUASAR - Layer 4: Output Engine
 # qsr_table(), qsr_plot(), qsr_report()
 # Static (ggplot2) + Interactive (plotly) visualization
 # ============================================================
@@ -214,7 +214,7 @@ qsr_plot <- function(data        = NULL,
     }
   }
 
-  # Native plotly types — handle separately
+  # Native plotly types - handle separately
   plotly_native_types <- c("scatter3d", "surface3d", "bubble", "heatmap",
                            "violin", "ridge", "parallel", "sankey",
                            "treemap", "sunburst", "funnel", "waterfall",
@@ -402,7 +402,7 @@ qsr_report <- function(template      = "journal_article",
 
 
 # ============================================================
-# INTERNAL HELPERS — Tables
+# INTERNAL HELPERS - Tables
 # ============================================================
 
 #' Auto-detect table type from input
@@ -428,7 +428,7 @@ qsr_report <- function(template      = "journal_article",
   if (stars) {
     tbl <- gtsummary::add_significance_stars(tbl)
   }
-  # Add model fit statistics — only those available for this model type
+  # Add model fit statistics - only those available for this model type
   tryCatch({
     glance_stats <- broom::glance(x)
     available <- intersect(
@@ -619,7 +619,7 @@ qsr_report <- function(template      = "journal_article",
   if (!is.null(latex_str)) {
     writeLines(latex_str, con = file_path)
   } else {
-    cli::cli_alert_warning("LaTeX export failed — install {.pkg kableExtra} for best results")
+    cli::cli_alert_warning("LaTeX export failed - install {.pkg kableExtra} for best results")
   }
 }
 
@@ -631,7 +631,7 @@ qsr_report <- function(template      = "journal_article",
 
 
 # ============================================================
-# INTERNAL HELPERS — Static Plots (ggplot2)
+# INTERNAL HELPERS - Static Plots (ggplot2)
 # ============================================================
 
 #' QUASAR ggplot2 theme
@@ -759,7 +759,7 @@ qsr_report <- function(template      = "journal_article",
 
 
 # ============================================================
-# INTERNAL HELPERS — Interactive Plots (plotly)
+# INTERNAL HELPERS - Interactive Plots (plotly)
 # ============================================================
 
 #' Convert ggplot to interactive plotly
@@ -1121,7 +1121,7 @@ qsr_report <- function(template      = "journal_article",
 
 
 # ============================================================
-# INTERNAL HELPERS — Report
+# INTERNAL HELPERS - Report
 # ============================================================
 
 #' Build an Rmd file from a QUASAR template

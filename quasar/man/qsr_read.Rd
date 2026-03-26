@@ -41,7 +41,7 @@ Typically 10-30x faster than \code{read.csv()} and 2-5x faster than
 \code{data.table::fread()} on large files.
 }
 \details{
-The Rust backend uses Polars lazy evaluation — it only reads the columns
+The Rust backend uses Polars lazy evaluation - it only reads the columns
 and rows you need, which makes it extremely efficient for large files.
 
 Supported formats:
@@ -52,7 +52,7 @@ Supported formats:
 }
 \examples{
 \dontrun{
-# Read a CSV — 10-30x faster than read.csv
+# Read a CSV - 10-30x faster than read.csv
 qsr_read("data/large_file.csv")
 
 # Read only specific columns
@@ -64,7 +64,7 @@ qsr_read("data/big.csv", n_rows = 1000)
 # Read Parquet (auto-detected from extension)
 qsr_read("data/results.parquet")
 
-# After qsr_read(), data is in context — use qsr_table(), qsr_plot() directly
+# After qsr_read(), data is in context - use qsr_table(), qsr_plot() directly
 qsr_read("data/survey.csv")
 qsr_table(type = "summary")
 qsr_plot(type = "correlation")
