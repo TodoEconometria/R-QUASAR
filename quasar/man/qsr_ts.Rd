@@ -11,6 +11,7 @@ qsr_ts(
   forecast = 0L,
   frequency = 12L,
   order = NULL,
+  horizon = NULL,
   ...,
   name = "ts_model"
 )
@@ -23,7 +24,8 @@ qsr_ts(
 \item{method}{Character. Method: "auto" (auto.arima), "arima", "ets"
 (exponential smoothing), "decompose", "hw" (Holt-Winters). Default "auto".}
 
-\item{forecast}{Integer. Number of periods to forecast. Default 0 (no forecast).}
+\item{forecast}{Integer. Number of periods to forecast. Default 0 (no forecast).
+Alias: \code{horizon}.}
 
 \item{frequency}{Integer. Time series frequency (12=monthly, 4=quarterly,
 365=daily). Default 12.}
@@ -31,7 +33,10 @@ qsr_ts(
 \item{order}{Integer vector of length 3. ARIMA(p,d,q) order. Only for
 method="arima".}
 
-\item{...}{Additional arguments.}
+\item{horizon}{Integer. Alias for \code{forecast} (common in forecasting).
+If both are given, \code{forecast} takes precedence.}
+
+\item{...}{Additional arguments passed to the underlying method.}
 
 \item{name}{Character. Context name. Default "ts_model".}
 }

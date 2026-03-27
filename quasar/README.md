@@ -2,33 +2,29 @@
 # QUASAR <img src="man/figures/logo.png" align="right" height="139" alt="" />
 
 <!-- badges: start -->
-[![R-CMD-check](https://img.shields.io/badge/R--CMD--check-passing-brightgreen)](https://github.com/TodoEconometria/R-QUASAR)
+[![R-CMD-check](https://img.shields.io/badge/R--CMD--check-0E%200W%200N-brightgreen)](https://github.com/TodoEconometria/R-QUASAR)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Tests](https://img.shields.io/badge/tests-85%20passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-330%20passing-brightgreen)]()
 <!-- badges: end -->
 
 **Query-driven Unified Automated Stack for Analytical Runtime**
 
-> Stop rewriting the same 200 lines every project.
-> One framework for data -> insights -> output.
+> The R framework for applied economists who need to go from survey
+> microdata to publication-ready output without boilerplate.
 
-QUASAR is an R framework that eliminates boilerplate and standardizes the
-architecture of data analysis projects. Designed for academic researchers
-and data scientists who are tired of writing the same setup, formatting, and
-export code for every analysis.
+QUASAR eliminates the repetitive infrastructure code between raw data and
+journal submission. Register your data once, and every downstream
+function — models, tables, plots, reports — reads from context
+automatically.
 
-## What Makes QUASAR Different
+## Who Is This For
 
-| Task | Base R / Tidyverse | QUASAR |
-|------|-------------------|--------|
-| Project setup | Manual folder creation | `qsr_init("my_study")` |
-| Load from database | 6-8 lines (DBI + driver) | `qsr_db("postgres", table = "data")` |
-| Fit a model | `lm(y ~ x, data = df)` | `qsr_model(y ~ x)` |
-| APA7 regression table | 15-25 lines (broom + gt) | `qsr_table()` |
-| Coefficient plot | 10-15 lines (broom + ggplot2) | `qsr_plot(type = "coefficient")` |
-| Make it interactive | +5 lines (plotly) | `interactive = TRUE` |
-| 3D scatter plot | 10+ lines (plotly) | `qsr_plot(type = "scatter3d")` |
-| Export report | 20+ lines (rmarkdown) | `qsr_report()` |
+- Applied economists working with household survey microdata (ENAHO, EH,
+  GEIH, ENIGH)
+- Researchers who need APA7/Chicago tables, coefficient plots, and LaTeX
+  export in minutes, not hours
+- Teams processing large panel datasets (100K+ observations) who want
+  Rust-level speed without leaving R
 
 ## Installation
 
@@ -37,125 +33,116 @@ export code for every analysis.
 pak::pak("TodoEconometria/R-QUASAR/quasar")
 ```
 
+**System requirements:** R >= 4.2, Rust toolchain (for Polars backend).
+
 ## Quick Start
 
 ```r
 library(quasar)
 
-# Configure once
 qsr_config()
-
-# Register data
 qsr_data(mtcars)
-
-# Fit model (data comes from context — no need to pass it)
 qsr_model(mpg ~ wt + hp)
 
-# Output — zero arguments needed
-qsr_table()                                    # APA7 regression table
-qsr_table(type = "summary")                   # Descriptive statistics
-qsr_plot(type = "coefficient")                 # Coefficient plot
-qsr_plot(type = "scatter", x = wt, y = mpg,
-         interactive = TRUE)                   # Interactive scatter
+qsr_table()                        # APA7 regression table
+qsr_plot(type = "coefficient")     # coefficient plot
 ```
 
-## Architecture
+Five calls. No `broom::tidy()`, no `gt::tab_options()`, no 15-line
+ggplot2 theme blocks.
 
-```
-                    QUASAR PUBLIC API
-        What you touch — clean, simple, zero-argument
-+------------------+------------------+---------------------+
-|   LAYER 1        |    LAYER 2       |     LAYER 3         |
-|   Scaffold       |    Context       |     Connectors      |
-|                  |                  |                     |
-| qsr_init()       | qsr_config()     | qsr_db()            |
-|                  | qsr_data()       | qsr_spark()         |
-|                  | qsr_model()      | qsr_fetch()         |
-|                  | qsr_get()        | qsr_python()        |
-+------------------+------------------+---------------------+
-|                       LAYER 4                             |
-|                    Output Engine                          |
-|      qsr_table() - qsr_plot() - qsr_report()             |
-|   20 plot types | APA7/Chicago | Static + Interactive     |
-+-------------------------------------------------------+
-```
+## What QUASAR Does That Nothing Else Does
 
-## Features
+| Problem | Existing solution | QUASAR |
+|---------|------------------|--------|
+| Register data once, use everywhere | None (pass `data=` every time) | `qsr_data()` context engine |
+| Fuzzy match survey text fields | Manual scripting | `qsr_normalize_text()` |
+| Harmonize geo codes across waves | Manual crosswalk tables | `qsr_crosswalk()` |
+| Convert BOB/PEN/COP to constant USD | Write exchange rate logic | `qsr_currency()` (built-in rates 2006-2023) |
+| Validate survey data quality | Ad hoc checks | `qsr_validate(checks = "survey")` |
+| Log research decisions for replication | README notes | `qsr_decision_log()` structured markdown |
+| Read 50M-row CSV fast | `data.table::fread()` | `qsr_read()` Polars/Rust backend |
+| APA7 table from model | 15-25 lines (broom + gt) | `qsr_table()` |
 
-### Tables
-- APA7 and Chicago formatting out of the box
-- Auto-detects model vs. data frame input
-- Export to HTML, LaTeX, Word, RTF
+## Core Modules
 
-### Plots (20 types)
-**Static (ggplot2):** scatter, bar, histogram, density, boxplot, coefficient, correlation
-
-**Interactive (plotly):** scatter3d, surface3d, bubble, heatmap, violin, ridge, parallel, sankey, treemap, sunburst, funnel, waterfall, radar
-
-**Any static plot becomes interactive** with `interactive = TRUE`.
-
-**Three themes:** `quasar_academic`, `quasar_minimal`, `quasar_dark`
-
-### Connectors
-- **Databases:** SQLite, PostgreSQL, MySQL, ODBC
-- **Academic APIs:** World Bank, FRED, US Census, any URL
-- **Spark:** One-line connection via sparklyr
-- **Python:** Zero-friction interop via reticulate
-
-### Context Injection
-Register data and models once. Every downstream function reads from context:
-
+### Context Engine
 ```r
-qsr_data(survey_results)
-qsr_model(satisfaction ~ age + income)
+qsr_config(significance_level = 0.05, random_seed = 42)
+qsr_data(survey_panel)
+qsr_model(log_income ~ education + indigenous, type = "probit")
 
-# These all work with zero arguments:
+# Everything downstream reads from context:
 qsr_table()
 qsr_plot(type = "coefficient")
-qsr_plot(type = "correlation")
 ```
 
-## Complete Pipeline Example
-
-From database to publication in 10 lines:
-
+### Survey Microdata Tools
 ```r
-library(quasar)
-
-qsr_config(output_format = "apa7")
-qsr_db("sqlite", dbname = "study.sqlite", table = "responses")
-qsr_model(satisfaction ~ age + income + education)
-qsr_table(caption = "Table 1. OLS Estimates")
-qsr_table(type = "summary", caption = "Table 2. Descriptive Statistics")
-qsr_plot(type = "coefficient", title = "Figure 1. Effect Sizes")
-qsr_plot(type = "correlation", interactive = TRUE, export = "html")
-qsr_report(title = "Satisfaction Analysis", journal = "r_journal")
+qsr_normalize_text(column = "crop_name",
+                   dictionary = c("coca", "cafe", "cacao"))
+qsr_crosswalk(column = "ubigeo", crosswalk = "crosswalk_2017.csv",
+              year_column = "year", apply_before = 2017)
+qsr_currency(columns = "ingreso", from_currency = "PEN", base_year = 2015)
+qsr_validate(checks = "panel")
 ```
 
-## Rust-Powered Performance
-
-QUASAR includes a Polars/Rust backend — the user never sees Rust, everything just goes faster.
-
+### Machine Learning (12 methods)
 ```r
-# Read a 50M-row CSV — 10-30x faster than read.csv()
+qsr_ml(mpg ~ ., method = "rf")           # Random Forest
+qsr_ml(mpg ~ ., method = "xgboost")      # XGBoost
+qsr_cv(mpg ~ ., method = "rf", k = 10)   # Cross-validation
+qsr_compare()                              # Side-by-side comparison
+```
+
+### Time Series
+```r
+qsr_ts(AirPassengers, method = "auto", horizon = 12)
+qsr_ts(AirPassengers, method = "hw", forecast = 24)
+```
+
+### Rust/Polars Backend
+```r
 qsr_read("data/large_file.csv")
-
-# Summary stats, group-by, filter — directly on the file
-qsr_fast_summary("data/large_file.csv")
 qsr_fast_group("sales.csv", by = "region", col = "revenue", fn = "mean")
 qsr_fast_filter("logs.csv", col = "status", op = "eq", value = 200)
-
-# Compare QUASAR vs Base R on your data
-qsr_benchmark("data/big_file.csv")
 ```
 
-**Adaptive Process Isolation**: Files >10MB automatically run in a separate subprocess with all CPU cores. Files <10MB use direct single-threaded call. Zero crashes, maximum speed.
+The Polars engine performs aggregations, filtering, and sorting directly
+on files without loading them fully into R. For pure CSV reading speed,
+`data.table::fread()` remains faster. The QUASAR backend shines on
+file-level operations and will improve with release builds.
 
-## Roadmap
+### Output Engine (20 plot types)
+```r
+qsr_table(caption = "Table 1. OLS Estimates", export = "latex")
+qsr_plot(type = "scatter", x = wt, y = mpg, interactive = TRUE)
+qsr_plot(type = "scatter3d", x = wt, y = hp, z = mpg)
+qsr_report(title = "Analysis", journal = "r_journal")
+```
 
-- [x] **Phase 1** — Core R framework (4 layers, 13 exported functions)
-- [x] **Phase 2** — Rust/Polars backend (6 functions, 10-30x faster, adaptive parallelism)
-- [ ] **Phase 3** — CRAN submission + The R Journal paper
+### Connectors
+```r
+qsr_db("postgres", table = "surveys")     # databases
+qsr_fetch("worldbank", indicator = "NY.GDP.PCAP.CD")  # APIs
+qsr_search("GDP")                          # search across sources
+qsr_guide("ine_bolivia", year = 2023)      # download guidance
+```
+
+## Numbers
+
+- **48 exported functions** across 15 modules
+- **330 tests**, 0 failures (R CMD check: 0E 0W 0N)
+- **7,485 lines** of R + **290 lines** of Rust
+- **3 vignettes** with worked examples
+- Built-in exchange rates and CPI deflators for BOB, PEN, COP, BRL (2006-2023)
+
+## Validated on Real Data
+
+QUASAR was developed and validated on 1.14 million observations from
+Bolivia (Encuesta de Hogares, 2006-2024) and Peru (ENAHO, 2004-2023)
+household surveys. Models estimated include Probit, Ordered Probit,
+Tobit, Heckman, Double Hurdle, and Multinomial Logit.
 
 ## License
 

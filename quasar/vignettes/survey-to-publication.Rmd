@@ -1,0 +1,192 @@
+---
+title: "From Survey Microdata to Publication Tables"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{From Survey Microdata to Publication Tables}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+## The Applied Economist's Problem
+
+Working with household survey microdata (ENAHO, Encuesta de Hogares, GEIH)
+involves weeks of boilerplate: harmonizing variable names across waves,
+cleaning free-text fields, converting currencies to constant USD, validating
+data quality, and formatting regression tables for journal submission.
+
+QUASAR was built from direct experience with these datasets. Every function
+in the survey module solves a real problem encountered while processing
+1.14 million observations across Bolivia and Peru household surveys.
+
+## Complete Workflow
+
+```{r workflow}
+library(quasar)
+
+qsr_config(
+  significance_level = 0.05,
+  random_seed = 42,
+  output_format = "apa7"
+)
+
+# 1. Load survey data
+qsr_data(survey_panel)
+
+# 2. Clean text fields (fuzzy matching for typos)
+qsr_normalize_text(
+  column = "crop_name",
+  dictionary = c("coca", "cafe", "cacao", "banana", "arroz"),
+  max_dist = 2
+)
+
+# 3. Harmonize geographic codes across waves
+qsr_crosswalk(
+  column = "ubigeo",
+  crosswalk = "data/ubigeo_crosswalk_2017.csv",
+  year_column = "year",
+  apply_before = 2017
+)
+
+# 4. Convert to constant USD
+qsr_currency(
+  columns = c("ingreso_laboral", "ingreso_total"),
+  from_currency = "PEN",
+  base_year = 2015
+)
+
+# 5. Validate
+qsr_validate(checks = "survey")
+
+# 6. Estimate
+qsr_model(log_income ~ education + experience + indigenous, type = "lm")
+
+# 7. Publish
+qsr_table(caption = "Table 1. OLS Estimates of Income Determinants")
+```
+
+## Text Normalization
+
+Survey respondents write crop names, occupations, and locations with typos,
+abbreviations, and dialectal variants. `qsr_normalize_text()` uses
+Levenshtein distance to standardize them:
+
+```{r normalize}
+qsr_normalize_text(
+  column = "occupation",
+  dictionary = c("agricultor", "comerciante", "minero",
+                 "profesor", "obrero", "empleado"),
+  max_dist = 2,
+  review = TRUE  # prints matches for manual verification
+)
+```
+
+## Geographic Crosswalks
+
+Administrative boundaries change between census years (Peru 2017, Colombia
+DIVIPOLA updates). `qsr_crosswalk()` maps old codes to new ones:
+
+```{r crosswalk}
+qsr_crosswalk(
+  column = "cod_municipio",
+  crosswalk = data.frame(
+    old = c("05001", "05002"),
+    new = c("05001", "05899")
+  )
+)
+```
+
+## Currency Conversion
+
+Built-in exchange rates and CPI deflators for BOB, PEN, COP, and BRL
+(2006-2023, source: World Bank):
+
+```{r currency}
+qsr_currency(
+  columns = c("ingreso_laboral"),
+  from_currency = "BOB",
+  base_year = 2015
+)
+```
+
+Custom rates can be passed for any other currency or when official rates
+differ from market rates.
+
+## Data Validation
+
+Three presets designed for survey microdata:
+
+```{r validate}
+# Basic: no empty dataset, no all-NA columns, no duplicates
+qsr_validate(checks = "basic")
+
+# Survey: adds weight checks, NA rate, negative monetary values
+qsr_validate(checks = "survey")
+
+# Panel: adds year column, balance across waves
+qsr_validate(checks = "panel")
+
+# Custom checks
+qsr_validate(checks = list(
+  "No duplicate IDs" = function(df) {
+    if (any(duplicated(df$id))) "Duplicates" else TRUE
+  }
+))
+```
+
+## Decision Logging
+
+Every non-obvious data cleaning decision should be documented. QUASAR
+generates structured markdown logs for replication packages:
+
+```{r decision_log}
+qsr_decision_log(
+  id = "BOL-D001",
+  title = "Income reference period correction",
+  variable = "ingreso_laboral",
+  waves = "2012 onwards",
+  problem = "Reference period changed from monthly to weekly",
+  evidence = "Mean income 2011=1847 BOB vs 2012=412 BOB",
+  decision = "Multiply 2012+ incomes by 4.3",
+  code_ref = "harmonize_bol.R line 87",
+  impact_n = "None (no observations dropped)",
+  alternative = "Exclude 2012-2023 — rejected: loses 11 years"
+)
+```
+
+## Publication Tables
+
+After estimation, generate journal-ready tables:
+
+```{r tables}
+# Single model table
+qsr_model(lwage ~ educ + exper + tenure)
+qsr_table(caption = "Table 1. Mincer Equation")
+
+# Compare multiple specifications
+qsr_model(lwage ~ educ, name = "bivariate")
+qsr_model(lwage ~ educ + exper, name = "controls")
+qsr_model(lwage ~ educ + exper + tenure, name = "full")
+qsr_compare()
+
+# Export to LaTeX for journal submission
+qsr_table(export = "latex")
+```
+
+## Download Guides
+
+For surveys requiring manual download (INE Bolivia, INEI Peru, DANE
+Colombia), QUASAR provides step-by-step guidance:
+
+```{r guide}
+qsr_guide("ine_bolivia", year = 2023)
+qsr_guide("inei_peru")
+qsr_guide("dane_colombia")
+```

@@ -292,39 +292,48 @@ Interpretation: each additional child under 6 reduces the probability of labor f
 
 ---
 
-## 8. Real-World Application: Coca in the Andes
+## 8. Real-World Application: Survey Microdata Pipeline
 
-This section shows QUASAR applied to actual research — a cross-country study of coca leaf consumption and production using household survey microdata from Bolivia (INE) and Peru (INEI).
+This section shows QUASAR applied to a typical research workflow with
+household survey microdata across multiple countries and waves.
 
 ### The data pipeline
 
 ```r
-# Bolivia: 19 waves of Encuestas de Hogares (2005-2024)
-# 571,940 individuals x 48 variables
-# Stored as .sav files on F: drive, harmonized to 18 MB parquet
+library(quasar)
+qsr_config(random_seed = 42, output_format = "apa7")
 
-# Peru: 19 waves of ENAHO (2006-2024)
-# 563,842 households x 26 variables
-# 218 .sav files (24 GB), harmonized to 20.6 MB parquet
+# Load and clean survey data
+qsr_load_folder("data/raw/surveys/", pattern = "household", stack = TRUE)
+qsr_clean(impute = "median", outliers = "winsorize")
+
+# Normalize free-text fields
+qsr_normalize_text(column = "occupation",
+                   dictionary = c("farmer", "trader", "teacher", "miner"),
+                   max_dist = 2)
+
+# Harmonize geographic codes across waves
+qsr_crosswalk(column = "geo_code", crosswalk = "data/geo_crosswalk.csv",
+              year_column = "year", apply_before = 2017)
+
+# Convert to constant USD
+qsr_currency(columns = c("income", "expenditure"),
+             from_currency = "PEN", base_year = 2015)
+
+# Validate
+qsr_validate(checks = "panel")
+
+# Estimate
+qsr_model(log_income ~ education + experience + indigenous, name = "ols")
+qsr_model(participation ~ education + poverty + urban, type = "probit", name = "probit")
+
+# Publication output
+qsr_table(caption = "Table 1. Determinants of Income")
+qsr_compare()
 ```
 
-### Double Hurdle results (actual output)
-
-Bolivia models consumption (who chews coca and how much). Peru models production (who grows coca and how much). The Double Hurdle separates the participation decision from the intensity decision.
-
-```
-                    BOL-Participation  BOL-Intensity  PER-Participation  PER-Intensity
-NPIOC/indigena         +0.197***        +0.002          +0.186***         -0.146
-pobre                  +0.040***        +0.001          +0.066.           -0.074
-pobrextr               +0.029**         +0.012***       -0.126*           -0.515**
-hombre                 +0.129***        +0.005***       +0.357***         +0.299*
-urbano                 -0.604***        -0.023***          --                --
--------
-N                       393,323          50,645          118,594              890
-Pseudo-R2 / R2            0.15            0.46             0.24             0.20
-```
-
-The key finding: extreme poverty increases coca consumption intensity in Bolivia (+0.012\*\*\*) but decreases production intensity in Peru (-0.515\*\*). The poorest households chew more coca but cannot produce it because they lack land. This is the "poverty trap" asymmetry between the demand and supply sides of the coca market.
+QUASAR has been validated on datasets with over 1 million observations
+across multiple Latin American household surveys.
 
 ---
 

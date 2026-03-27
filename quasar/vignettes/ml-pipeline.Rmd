@@ -1,0 +1,141 @@
+---
+title: "Machine Learning with QUASAR"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Machine Learning with QUASAR}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+## Overview
+
+QUASAR provides a unified interface for 12 machine learning methods through
+`qsr_ml()`, cross-validation through `qsr_cv()`, and model comparison through
+`qsr_compare()`. Every method works with a single function call and integrates
+with the QUASAR context engine.
+
+## Supported Methods
+
+| Method | Engine | Type |
+|--------|--------|------|
+| `"rf"` | ranger | Random Forest |
+| `"xgboost"` | xgboost | Gradient Boosting |
+| `"svm"` | e1071 | Support Vector Machine |
+| `"nn"` | nnet | Neural Network |
+| `"knn"` | class | K-Nearest Neighbors |
+| `"lasso"` | glmnet | Lasso (L1) |
+| `"ridge"` | glmnet | Ridge (L2) |
+| `"elastic"` | glmnet | Elastic Net |
+| `"tree"` | rpart | Decision Tree |
+| `"nb"` | e1071 | Naive Bayes |
+| `"kmeans"` | stats | K-Means Clustering |
+| `"pca"` | stats | Principal Components |
+
+## Quick Start
+
+```{r quickstart}
+library(quasar)
+
+qsr_config(random_seed = 42)
+qsr_data(mtcars)
+
+# Fit a Random Forest
+qsr_ml(mpg ~ ., method = "rf")
+
+# Cross-validate
+qsr_cv(mpg ~ ., method = "rf", k = 5)
+```
+
+## Comparing Multiple Methods
+
+```{r compare}
+library(quasar)
+data(wage1, package = "wooldridge")
+
+qsr_config(random_seed = 42)
+qsr_data(wage1)
+
+# Fit statistical model
+qsr_model(lwage ~ educ + exper + tenure, name = "ols")
+
+# Fit ML models
+qsr_ml(lwage ~ educ + exper + tenure, method = "rf", name = "forest")
+qsr_ml(lwage ~ educ + exper + tenure, method = "nn", size = 10, name = "nnet")
+
+# Compare all models
+qsr_compare()
+```
+
+## Cross-Validation Workflow
+
+```{r cv}
+qsr_data(mtcars)
+
+# Compare methods via CV
+qsr_cv(mpg ~ wt + hp + disp, method = "rf", k = 10)
+qsr_cv(mpg ~ wt + hp + disp, method = "tree", k = 10)
+qsr_cv(mpg ~ wt + hp + disp, method = "nn", k = 10, size = 5)
+```
+
+`qsr_cv()` automatically detects regression vs. classification based on the
+response variable. Regression reports RMSE and R-squared; classification
+reports accuracy.
+
+## Unsupervised Learning
+
+```{r unsupervised}
+qsr_data(iris[, 1:4])
+
+# K-Means clustering
+qsr_ml(method = "kmeans", centers = 3)
+
+# PCA
+qsr_ml(method = "pca")
+```
+
+## Passing Method-Specific Arguments
+
+All extra arguments are forwarded to the underlying engine:
+
+```{r args}
+# Random Forest with 1000 trees
+qsr_ml(mpg ~ ., method = "rf", num.trees = 1000)
+
+# XGBoost with custom parameters
+qsr_ml(mpg ~ ., method = "xgboost", nrounds = 200, max_depth = 6)
+
+# Neural Network with 20 hidden units
+qsr_ml(mpg ~ ., method = "nn", size = 20, maxit = 500)
+
+# Lasso with specific lambda range
+qsr_ml(mpg ~ ., method = "lasso")
+```
+
+## Integration with Publication Output
+
+After fitting ML models, use `qsr_plot()` for visualization:
+
+```{r output}
+qsr_data(mtcars)
+qsr_ml(mpg ~ ., method = "rf")
+
+# Variable importance plot
+qsr_plot(type = "importance")
+```
+
+## Design Decisions
+
+- **No preprocessing required.** QUASAR handles formula parsing, matrix
+  conversion for XGBoost/glmnet, and factor encoding internally.
+- **Argument filtering.** When using Random Forest via `qsr_cv()`, arguments
+  that are not recognized by ranger are silently filtered to prevent warnings.
+- **Reproducibility.** Seeds are managed by the context engine. Set once with
+  `qsr_config(random_seed = 42)` and all downstream models use it.

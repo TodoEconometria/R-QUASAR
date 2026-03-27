@@ -67,6 +67,37 @@ test_that("qsr_ts() stores model in context", {
   qsr_reset()
 })
 
+test_that("qsr_ts() horizon alias works for Holt-Winters", {
+  qsr_reset()
+  result <- qsr_ts(AirPassengers, method = "hw", horizon = 6)
+  expect_true(!is.null(result$forecast))
+  expect_equal(length(result$forecast$mean), 6)
+  qsr_reset()
+})
+
+test_that("qsr_ts() horizon alias works for auto.arima", {
+  skip_if_not_installed("forecast")
+  qsr_reset()
+  result <- qsr_ts(AirPassengers, method = "auto", horizon = 12)
+  expect_true(!is.null(result$forecast))
+  qsr_reset()
+})
+
+test_that("qsr_ts() horizon alias works for ARIMA", {
+  qsr_reset()
+  result <- qsr_ts(AirPassengers, method = "arima", order = c(1, 1, 0),
+                   horizon = 10)
+  expect_true(!is.null(result$forecast))
+  qsr_reset()
+})
+
+test_that("qsr_ts() forecast takes precedence over horizon", {
+  qsr_reset()
+  result <- qsr_ts(AirPassengers, method = "hw", forecast = 6, horizon = 12)
+  expect_equal(length(result$forecast$mean), 6)
+  qsr_reset()
+})
+
 test_that("qsr_ts() fails without data", {
   qsr_reset()
   expect_error(qsr_ts(), "No data")
