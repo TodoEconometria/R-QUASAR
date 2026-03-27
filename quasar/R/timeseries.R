@@ -14,11 +14,14 @@
 #' @param method Character. Method: "auto" (auto.arima), "arima", "ets"
 #'   (exponential smoothing), "decompose", "hw" (Holt-Winters). Default "auto".
 #' @param forecast Integer. Number of periods to forecast. Default 0 (no forecast).
+#'   Alias: `horizon`.
 #' @param frequency Integer. Time series frequency (12=monthly, 4=quarterly,
 #'   365=daily). Default 12.
 #' @param order Integer vector of length 3. ARIMA(p,d,q) order. Only for
 #'   method="arima".
-#' @param ... Additional arguments.
+#' @param horizon Integer. Alias for `forecast` (common in forecasting).
+#'   If both are given, `forecast` takes precedence.
+#' @param ... Additional arguments passed to the underlying method.
 #' @param name Character. Context name. Default "ts_model".
 #'
 #' @return A list with model and forecast (invisibly).
@@ -46,10 +49,17 @@ qsr_ts <- function(y = NULL,
                    forecast = 0L,
                    frequency = 12L,
                    order = NULL,
+                   horizon = NULL,
                    ...,
                    name = "ts_model") {
 
   method <- match.arg(method)
+
+  # horizon is an alias for forecast
+
+  if (!is.null(horizon) && forecast == 0L) {
+    forecast <- as.integer(horizon)
+  }
 
   # Get time series data
   if (is.null(y)) {

@@ -126,6 +126,9 @@ qsr_ml <- function(formula = NULL,
 .qsr_ml_rf <- function(formula, df, ...) {
   .qsr_require("ranger", "for Random Forest")
   dots <- list(...)
+  # Filter to only ranger-accepted arguments
+  ranger_args <- names(formals(ranger::ranger))
+  dots <- dots[names(dots) %in% ranger_args]
   args <- c(list(formula = formula, data = df), dots)
   if (is.null(args$importance)) args$importance <- "impurity"
   model <- do.call(ranger::ranger, args)
@@ -412,6 +415,11 @@ qsr_cv <- function(formula = NULL,
   y <- df[[y_var]]
   is_classification <- is.factor(y) || is.character(y) || length(unique(y)) <= 10
 
+  # Filter ... to remove CV-related args that should not propagate to qsr_ml
+  dots <- list(...)
+  cv_only_args <- c("folds", "nfolds", "fold_ids", "cv", "cv.folds")
+  dots <- dots[!names(dots) %in% cv_only_args]
+
   # Create folds
   n <- nrow(df)
   fold_ids <- sample(rep(seq_len(k), length.out = n))
@@ -429,10 +437,12 @@ qsr_cv <- function(formula = NULL,
     test_data <- df[test_idx, , drop = FALSE]
 
     # Fit model on training fold
+    ml_args <- c(list(formula = formula, data = train_data,
+                      method = method, name = ".cv_temp"), dots)
     model <- tryCatch(
-      suppressMessages(
-        qsr_ml(formula, data = train_data, method = method, name = ".cv_temp", ...)
-      ),
+      suppressMessages(suppressWarnings(
+        do.call(qsr_ml, ml_args)
+      )),
       error = function(e) NULL
     )
 

@@ -64,12 +64,10 @@ Suggests:
     gtrendsR,
     haven,
     arrow,
-    readxl,
     rvest,
     tabulapdf,
     pdftools,
     kableExtra,
-    modelsummary,
     sf,
     terra,
     exactextractr

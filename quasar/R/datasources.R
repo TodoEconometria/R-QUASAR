@@ -402,9 +402,13 @@ qsr_search <- function(query, sources = NULL, limit = 10L) {
 #'
 #' @examples
 #' \dontrun{
-#' qsr_guide("ine_bolivia")
+#' # International survey data (requires manual download)
+#' qsr_guide("lapop")
+#'
+#' # Latin American national statistics
+#' qsr_guide("dane_colombia")
+#' qsr_guide("ine_bolivia", year = 2023)
 #' qsr_guide("inei_peru")
-#' qsr_guide("pnis_colombia")
 #' }
 #'
 #' @export

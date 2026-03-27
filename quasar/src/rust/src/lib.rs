@@ -40,9 +40,9 @@ fn rust_read_csv(path: &str, n_rows: Nullable<i32>) -> List {
 
     let df = reader
         .finish()
-        .expect("Failed to parse CSV")
+        .unwrap_or_else(|e| panic!("QUASAR: Failed to parse CSV '{}': {}", path, e))
         .collect()
-        .expect("Failed to collect DataFrame");
+        .unwrap_or_else(|e| panic!("QUASAR: Failed to collect CSV '{}': {}", path, e));
 
     let elapsed = start.elapsed().as_secs_f64();
     df_to_list(&df, elapsed)
@@ -58,9 +58,9 @@ fn rust_read_parquet(path: &str) -> List {
 
     let args = ScanArgsParquet::default();
     let df = LazyFrame::scan_parquet(path, args)
-        .expect("Failed to read Parquet")
+        .unwrap_or_else(|e| panic!("QUASAR: Failed to read Parquet '{}': {}", path, e))
         .collect()
-        .expect("Failed to collect DataFrame");
+        .unwrap_or_else(|e| panic!("QUASAR: Failed to collect Parquet '{}': {}", path, e));
 
     let elapsed = start.elapsed().as_secs_f64();
     df_to_list(&df, elapsed)
@@ -74,9 +74,9 @@ fn rust_describe(path: &str) -> List {
     ensure_polars_init();
     let df = LazyCsvReader::new(path)
         .finish()
-        .expect("Failed to read CSV")
+        .unwrap_or_else(|e| panic!("QUASAR: Failed to read CSV '{}': {}", path, e))
         .collect()
-        .expect("Failed to collect");
+        .unwrap_or_else(|e| panic!("QUASAR: Failed to collect CSV '{}': {}", path, e));
 
     let col_names: Vec<String> = df.get_column_names().iter().map(|s| s.to_string()).collect();
 
@@ -125,7 +125,7 @@ fn rust_group_agg(path: &str, group_col: &str, agg_col: &str, agg_fn: &str) -> L
 
     let lazy = LazyCsvReader::new(path)
         .finish()
-        .expect("Failed to read CSV");
+        .unwrap_or_else(|e| panic!("QUASAR: Failed to read CSV '{}': {}", path, e));
 
     let agg_expr = match agg_fn {
         "mean" => col(agg_col).mean(),
@@ -134,7 +134,7 @@ fn rust_group_agg(path: &str, group_col: &str, agg_col: &str, agg_fn: &str) -> L
         "min" => col(agg_col).min(),
         "max" => col(agg_col).max(),
         "std" => col(agg_col).std(1),
-        _ => panic!("Unknown agg: {}", agg_fn),
+        _ => panic!("QUASAR: Unknown aggregation '{}'. Use: mean, sum, count, min, max, std", agg_fn),
     };
 
     let result_col = format!("{}_{}", agg_col, agg_fn);
@@ -142,7 +142,7 @@ fn rust_group_agg(path: &str, group_col: &str, agg_col: &str, agg_fn: &str) -> L
         .group_by([col(group_col)])
         .agg([agg_expr.alias(&result_col)])
         .collect()
-        .expect("Failed to aggregate");
+        .unwrap_or_else(|e| panic!("QUASAR: Failed to aggregate '{}' by '{}': {}", agg_col, group_col, e));
 
     let elapsed = start.elapsed().as_secs_f64();
     df_to_list(&df, elapsed)
@@ -161,7 +161,7 @@ fn rust_filter(path: &str, col_name: &str, op: &str, value: f64) -> List {
 
     let lazy = LazyCsvReader::new(path)
         .finish()
-        .expect("Failed to read CSV");
+        .unwrap_or_else(|e| panic!("QUASAR: Failed to read CSV '{}': {}", path, e));
 
     let filter_expr = match op {
         "gt" => col(col_name).gt(lit(value)),
@@ -170,13 +170,13 @@ fn rust_filter(path: &str, col_name: &str, op: &str, value: f64) -> List {
         "lte" => col(col_name).lt_eq(lit(value)),
         "eq" => col(col_name).eq(lit(value)),
         "neq" => col(col_name).neq(lit(value)),
-        _ => panic!("Unknown op: {}", op),
+        _ => panic!("QUASAR: Unknown operator '{}'. Use: gt, lt, gte, lte, eq, neq", op),
     };
 
     let df = lazy
         .filter(filter_expr)
         .collect()
-        .expect("Failed to filter");
+        .unwrap_or_else(|e| panic!("QUASAR: Failed to filter '{}' {} {}: {}", col_name, op, value, e));
 
     let elapsed = start.elapsed().as_secs_f64();
     df_to_list(&df, elapsed)
@@ -194,12 +194,12 @@ fn rust_sort(path: &str, by: &str, descending: bool) -> List {
 
     let lazy = LazyCsvReader::new(path)
         .finish()
-        .expect("Failed to read CSV");
+        .unwrap_or_else(|e| panic!("QUASAR: Failed to read CSV '{}': {}", path, e));
 
     let df = lazy
         .sort([by], SortMultipleOptions::new().with_order_descending(descending))
         .collect()
-        .expect("Failed to sort");
+        .unwrap_or_else(|e| panic!("QUASAR: Failed to sort by '{}': {}", by, e));
 
     let elapsed = start.elapsed().as_secs_f64();
     df_to_list(&df, elapsed)

@@ -115,6 +115,38 @@ test_that("qsr_cv() works with neural network", {
   qsr_reset()
 })
 
+test_that("qsr_cv() works with random forest", {
+  skip_if_not_installed("ranger")
+  qsr_reset()
+  qsr_data(mtcars)
+  result <- qsr_cv(mpg ~ wt + hp, method = "rf", k = 3)
+  expect_true(!is.null(result$rmse))
+  expect_true(result$rmse > 0)
+  expect_true(!is.null(result$r2))
+  qsr_reset()
+})
+
+test_that("qsr_cv() filters CV-only args (folds)", {
+  skip_if_not_installed("ranger")
+  qsr_reset()
+  qsr_data(mtcars)
+  # folds arg should be silently filtered, not cause error/warning
+  expect_no_warning(
+    suppressMessages(qsr_cv(mpg ~ wt + hp, method = "rf", k = 3, folds = 5))
+  )
+  qsr_reset()
+})
+
+test_that("qsr_cv() passes extra args to method", {
+  skip_if_not_installed("rpart")
+  qsr_reset()
+  qsr_data(mtcars)
+  # cp is a valid rpart arg, should pass through
+  result <- qsr_cv(mpg ~ wt + hp, method = "tree", k = 3, cp = 0.01)
+  expect_true(!is.null(result$rmse))
+  qsr_reset()
+})
+
 # ---- qsr_compare() ----
 
 test_that("qsr_compare() compares multiple models", {
