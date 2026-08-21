@@ -371,6 +371,12 @@ qsr_fetch <- function(source, ..., name = NULL, cache = TRUE) {
 #' @param name Character. Name for context registration of predictions.
 #' @param ... Additional arguments.
 #'
+#' @section Security:
+#' `package`, `fn` and `args` are executed in Python (and, with `install =
+#' TRUE`, installed from PyPI). Pass only trusted constants - never values
+#' derived from untrusted data or user input, as that is equivalent to
+#' arbitrary code execution.
+#'
 #' @return The Python object or prediction results (invisibly).
 #' @export
 #'
@@ -657,7 +663,7 @@ digest_simple <- function(x) {
 #' @noRd
 .qsr_cache_read <- function(key) {
   ctx_path <- .qsr_context$get("data_path")
-  cache_dir <- if (!is.null(ctx_path)) file.path(ctx_path, ".cache") else file.path("outputs", ".cache")
+  cache_dir <- if (!is.null(ctx_path)) file.path(ctx_path, ".cache") else tools::R_user_dir("rquasar", "cache")
   cache_file <- file.path(cache_dir, paste0(key, ".rds"))
 
   if (!file.exists(cache_file)) return(NULL)
@@ -666,14 +672,15 @@ digest_simple <- function(x) {
   age_hours <- difftime(Sys.time(), file.mtime(cache_file), units = "hours")
   if (as.numeric(age_hours) > 24) return(NULL)
 
-  tryCatch(readRDS(cache_file), error = function(e) NULL)
+  obj <- tryCatch(readRDS(cache_file), error = function(e) NULL)
+  if (is.data.frame(obj)) obj else NULL
 }
 
 #' Write to cache
 #' @noRd
 .qsr_cache_write <- function(df, key) {
   ctx_path <- .qsr_context$get("data_path")
-  cache_dir <- if (!is.null(ctx_path)) file.path(ctx_path, ".cache") else file.path("outputs", ".cache")
+  cache_dir <- if (!is.null(ctx_path)) file.path(ctx_path, ".cache") else tools::R_user_dir("rquasar", "cache")
   if (!dir.exists(cache_dir)) {
     dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
   }

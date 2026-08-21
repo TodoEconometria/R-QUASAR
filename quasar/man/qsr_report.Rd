@@ -11,7 +11,7 @@ qsr_report(
   title = "QUASAR Analysis Report",
   author = NULL,
   include = c("models", "tables", "figures", "session_info"),
-  output_dir = "outputs/reports",
+  output_dir = file.path(tempdir(), "rquasar_reports"),
   ...
 )
 }

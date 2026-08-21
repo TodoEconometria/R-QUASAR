@@ -10,183 +10,171 @@ vignette: >
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>",
-  eval = FALSE
+  comment = "#>"
 )
 ```
 
-## The Applied Economist's Problem
+## The applied economist's problem
 
 Working with household survey microdata (ENAHO, Encuesta de Hogares, GEIH)
-involves weeks of boilerplate: harmonizing variable names across waves,
-cleaning free-text fields, converting currencies to constant USD, validating
-data quality, and formatting regression tables for journal submission.
-
-QUASAR was built from direct experience with these datasets. Every function
+involves weeks of boilerplate: harmonizing variable names across waves, cleaning
+free-text fields, converting currencies to constant USD, validating data
+quality, and formatting regression tables for journal submission. Every function
 in the survey module solves a real problem encountered while processing
 1.14 million observations across Bolivia and Peru household surveys.
 
-## Complete Workflow
+## A familiar example first
 
-```{r workflow}
+The pipeline is the same on any microdata. Here it is on `wage1` from the
+`wooldridge` package — the dataset behind the textbook Mincer wage equation —
+so the workflow is recognizable before we reach the survey-specific tools:
+
+```{r wage1, eval = requireNamespace("wooldridge", quietly = TRUE)}
+library(rquasar)
+data("wage1", package = "wooldridge")
+
+qsr_config()
+qsr_data(wage1)
+qsr_model(lwage ~ educ + exper + tenure)
+qsr_table(caption = "Table 1. Mincer wage equation (wooldridge::wage1)")
+```
+
+The rest of this vignette uses `qsr_survey` to demonstrate the tools built
+specifically for developing-country household survey microdata.
+
+## A dataset you can run
+
+This vignette runs on `qsr_survey`, a **fully synthetic** household-survey panel
+shipped with the package. It mirrors the public structure of ENAHO/EH — `ubigeo`
+geographic codes, income in local currency, expansion weights, indigenous
+self-identification and free-text fields with realistic data-entry noise — but
+contains **no real observation**. See `?qsr_survey`.
+
+```{r data}
 library(rquasar)
 
-qsr_config(
-  significance_level = 0.05,
-  random_seed = 42,
-  output_format = "apa7"
-)
+qsr_config(significance_level = 0.05, random_seed = 42)
+qsr_data(qsr_survey)
 
-# 1. Load survey data
-qsr_data(survey_panel)
+str(qsr_survey[, c("year", "ubigeo", "crop_name", "ingreso_laboral",
+                   "education", "indigenous")])
+```
 
-# 2. Clean text fields (fuzzy matching for typos)
-qsr_normalize_text(
+## 1. Clean text fields (fuzzy matching)
+
+Respondents write crop names with typos and dialectal variants.
+`qsr_normalize_text()` uses edit distance to standardize them into a new
+`crop_name_clean` column (the original is preserved for audit):
+
+```{r normalize}
+d <- qsr_normalize_text(
   column = "crop_name",
   dictionary = c("coca", "cafe", "cacao", "banana", "arroz"),
-  max_dist = 2
+  max_dist = 2,
+  review = FALSE
 )
 
-# 3. Harmonize geographic codes across waves
-qsr_crosswalk(
+# dozens of noisy variants collapse to 5 clean categories
+table(d$crop_name_clean)
+```
+
+## 2. Harmonize geographic codes across waves
+
+Administrative boundaries change between census years. `qsr_crosswalk()` maps old
+codes to new ones, here only for waves before the 2017 update, into
+`ubigeo_harmonized`:
+
+```{r crosswalk}
+d <- qsr_crosswalk(
   column = "ubigeo",
-  crosswalk = "data/ubigeo_crosswalk_2017.csv",
+  crosswalk = data.frame(
+    old = c("0502", "0602"),
+    new = c("0503", "0699")
+  ),
   year_column = "year",
   apply_before = 2017
 )
 
-# 4. Convert to constant USD
-qsr_currency(
+table(pre_2017 = d$year < 2017,
+      remapped = d$ubigeo_harmonized %in% c("0503", "0699"))
+```
+
+## 3. Convert to constant USD
+
+Built-in exchange rates and CPI deflators for BOB, PEN, COP and BRL (2006-2023,
+source: World Bank). Converted columns get a `_usd` suffix:
+
+```{r currency}
+d <- qsr_currency(
   columns = c("ingreso_laboral", "ingreso_total"),
   from_currency = "PEN",
   base_year = 2015
 )
 
-# 5. Validate
+head(d[, c("ingreso_laboral", "ingreso_laboral_usd")])
+```
+
+## 4. Validate
+
+Three presets designed for survey microdata. The `"survey"` preset adds weight
+checks, NA-rate and negative-monetary checks — `qsr_survey` carries a few coding
+errors on purpose, so the report flags them:
+
+```{r validate}
 qsr_validate(checks = "survey")
+```
 
-# 6. Estimate
-qsr_model(log_income ~ education + experience + indigenous, type = "lm")
+## 5. Estimate and publish
 
-# 7. Publish
+The model reads from context; `qsr_table()` produces an APA7 regression table.
+The synthetic data is generated from a Mincer process, so the estimates are
+economically sensible — a positive return to schooling and a negative ethnic
+income gap:
+
+```{r model}
+qsr_model(log_income ~ education + experience + indigenous)
+```
+
+```{r table}
 qsr_table(caption = "Table 1. OLS Estimates of Income Determinants")
 ```
 
-## Text Normalization
+## Comparing specifications
 
-Survey respondents write crop names, occupations, and locations with typos,
-abbreviations, and dialectal variants. `qsr_normalize_text()` uses
-Levenshtein distance to standardize them:
-
-```{r normalize}
-qsr_normalize_text(
-  column = "occupation",
-  dictionary = c("agricultor", "comerciante", "minero",
-                 "profesor", "obrero", "empleado"),
-  max_dist = 2,
-  review = TRUE  # prints matches for manual verification
-)
+```{r compare}
+qsr_model(log_income ~ education, name = "bivariate")
+qsr_model(log_income ~ education + experience, name = "controls")
+qsr_model(log_income ~ education + experience + indigenous, name = "full")
+qsr_compare()
 ```
 
-## Geographic Crosswalks
+## Decision logging
 
-Administrative boundaries change between census years (Peru 2017, Colombia
-DIVIPOLA updates). `qsr_crosswalk()` maps old codes to new ones:
+Every non-obvious cleaning decision should be documented for replication.
+`qsr_decision_log()` generates structured markdown; point it at a temporary
+directory when running non-interactively:
 
-```{r crosswalk}
-qsr_crosswalk(
-  column = "cod_municipio",
-  crosswalk = data.frame(
-    old = c("05001", "05002"),
-    new = c("05001", "05899")
-  )
-)
-```
-
-## Currency Conversion
-
-Built-in exchange rates and CPI deflators for BOB, PEN, COP, and BRL
-(2006-2023, source: World Bank):
-
-```{r currency}
-qsr_currency(
-  columns = c("ingreso_laboral"),
-  from_currency = "BOB",
-  base_year = 2015
-)
-```
-
-Custom rates can be passed for any other currency or when official rates
-differ from market rates.
-
-## Data Validation
-
-Three presets designed for survey microdata:
-
-```{r validate}
-# Basic: no empty dataset, no all-NA columns, no duplicates
-qsr_validate(checks = "basic")
-
-# Survey: adds weight checks, NA rate, negative monetary values
-qsr_validate(checks = "survey")
-
-# Panel: adds year column, balance across waves
-qsr_validate(checks = "panel")
-
-# Custom checks
-qsr_validate(checks = list(
-  "No duplicate IDs" = function(df) {
-    if (any(duplicated(df$id))) "Duplicates" else TRUE
-  }
-))
-```
-
-## Decision Logging
-
-Every non-obvious data cleaning decision should be documented. QUASAR
-generates structured markdown logs for replication packages:
-
-```{r decision_log}
+```{r decision_log, eval = FALSE}
 qsr_decision_log(
-  id = "BOL-D001",
+  id = "SURV-D001",
   title = "Income reference period correction",
   variable = "ingreso_laboral",
   waves = "2012 onwards",
   problem = "Reference period changed from monthly to weekly",
-  evidence = "Mean income 2011=1847 BOB vs 2012=412 BOB",
-  decision = "Multiply 2012+ incomes by 4.3",
-  code_ref = "harmonize_bol.R line 87",
+  evidence = "Mean income drops sharply between adjacent waves",
+  decision = "Rescale post-2012 incomes to a monthly basis",
+  code_ref = "make_qsr_survey.R",
   impact_n = "None (no observations dropped)",
-  alternative = "Exclude 2012-2023 — rejected: loses 11 years"
+  alternative = "Drop the affected waves - rejected: loses coverage"
 )
 ```
 
-## Publication Tables
+## Download guides
 
-After estimation, generate journal-ready tables:
+For surveys requiring manual download (INE Bolivia, INEI Peru, DANE Colombia),
+`qsr_guide()` prints step-by-step instructions:
 
-```{r tables}
-# Single model table
-qsr_model(lwage ~ educ + exper + tenure)
-qsr_table(caption = "Table 1. Mincer Equation")
-
-# Compare multiple specifications
-qsr_model(lwage ~ educ, name = "bivariate")
-qsr_model(lwage ~ educ + exper, name = "controls")
-qsr_model(lwage ~ educ + exper + tenure, name = "full")
-qsr_compare()
-
-# Export to LaTeX for journal submission
-qsr_table(export = "latex")
-```
-
-## Download Guides
-
-For surveys requiring manual download (INE Bolivia, INEI Peru, DANE
-Colombia), QUASAR provides step-by-step guidance:
-
-```{r guide}
+```{r guide, eval = FALSE}
 qsr_guide("ine_bolivia", year = 2023)
 qsr_guide("inei_peru")
-qsr_guide("dane_colombia")
 ```

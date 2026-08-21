@@ -53,7 +53,7 @@ qsr_table <- function(x          = NULL,
                       format     = NULL,
                       caption    = NULL,
                       export     = NULL,
-                      output_dir = "outputs/tables",
+                      output_dir = file.path(tempdir(), "rquasar_tables"),
                       stars      = TRUE,
                       notes      = NULL,
                       model      = "last",
@@ -187,7 +187,7 @@ qsr_plot <- function(data        = NULL,
                      interactive = FALSE,
                      theme       = "quasar_academic",
                      export      = NULL,
-                     output_dir  = "outputs/figures",
+                     output_dir  = file.path(tempdir(), "rquasar_figures"),
                      width       = NULL,
                      height      = NULL,
                      dpi         = 300,
@@ -361,7 +361,7 @@ qsr_report <- function(template      = "journal_article",
                        author        = NULL,
                        include       = c("models", "tables", "figures",
                                          "session_info"),
-                       output_dir    = "outputs/reports",
+                       output_dir    = file.path(tempdir(), "rquasar_reports"),
                        ...) {
 
   template <- match.arg(template, c("journal_article", "technical_report",
@@ -1124,6 +1124,29 @@ qsr_report <- function(template      = "journal_article",
 # INTERNAL HELPERS - Report
 # ============================================================
 
+# Escape a string for safe insertion into a single-quoted YAML scalar: strip
+# control characters (so it cannot break out of the line or the `---` block) and
+# double single quotes. Prevents code injection via qsr_report(title=, author=),
+# where the values are written into an Rmd that is then rendered.
+#' @noRd
+.qsr_yaml_escape <- function(x) {
+  x <- as.character(x)[1L]
+  if (length(x) == 0L || is.na(x)) x <- ""
+  x <- gsub("[[:cntrl:]]", " ", x)
+  gsub("'", "''", x, fixed = TRUE)
+}
+
+# Escape a string for safe insertion into a LaTeX template: drop backslashes (no
+# LaTeX commands, no \write18) and escape LaTeX special characters.
+#' @noRd
+.qsr_latex_escape <- function(x) {
+  x <- as.character(x)[1L]
+  if (length(x) == 0L || is.na(x)) x <- ""
+  x <- gsub("[[:cntrl:]]", " ", x)
+  x <- gsub("\\", "", x, fixed = TRUE)
+  gsub("([&%$#_{}])", "\\\\\\1", x)
+}
+
 #' Build an Rmd file from a QUASAR template
 #' @noRd
 .qsr_build_report_rmd <- function(template, title, author, journal,
@@ -1143,8 +1166,10 @@ qsr_report <- function(template      = "journal_article",
       # Copy template to output dir for user to fill in
       tex_out <- file.path(output_dir, paste0(journal, "_template.tex"))
       tex_content <- readLines(template_path)
-      tex_content <- gsub("\\$title\\$", title, tex_content)
-      tex_content <- gsub("\\$author\\$", author, tex_content)
+      tex_content <- gsub("$title$", .qsr_latex_escape(title), tex_content,
+                          fixed = TRUE)
+      tex_content <- gsub("$author$", .qsr_latex_escape(author), tex_content,
+                          fixed = TRUE)
       writeLines(tex_content, tex_out)
       cli::cli_alert_info("LaTeX template: {.path {tex_out}}")
     }
@@ -1200,8 +1225,8 @@ qsr_report <- function(template      = "journal_article",
 
   rmd_content <- paste0(
     "---\n",
-    "title: \"", title, "\"\n",
-    "author: \"", author, "\"\n",
+    "title: '", .qsr_yaml_escape(title), "'\n",
+    "author: '", .qsr_yaml_escape(author), "'\n",
     "date: \"`r Sys.Date()`\"\n",
     "---\n\n",
     "```{r setup, include=FALSE}\n",

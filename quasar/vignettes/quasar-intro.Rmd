@@ -11,7 +11,7 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  eval = FALSE,
+  eval = TRUE,
   fig.width = 7,
   fig.height = 5
 )
@@ -28,7 +28,7 @@ data -> insights -> output.
 
 ## Quick Start: A Complete Analysis
 
-```{r quickstart, eval = FALSE}
+```{r quickstart}
 library(rquasar)
 
 # 1. Configure once
@@ -83,7 +83,7 @@ The context is what makes zero-argument calls possible. Register your data
 and configuration once -- every downstream function reads from it
 automatically.
 
-```{r context, eval = FALSE}
+```{r context}
 # Configure analysis parameters
 qsr_config(
   significance_level = 0.05,
@@ -238,9 +238,12 @@ Ten lines. Database to publication-ready report. No boilerplate.
 
 ## Rust-Powered Performance
 
-QUASAR includes a Polars/Rust backend for data operations that are
-5-30x faster than base R. The user never sees Rust -- the API stays
-the same.
+QUASAR includes a Polars/Rust backend that streams operations over a file
+instead of loading it into R. Its edge is **peak memory** (out-of-core work),
+not raw speed -- for data that fits in RAM, `data.table` is faster, and QUASAR
+says so. See the *Fast Data with the Rust Backend* vignette and the
+[benchmarks](https://github.com/TodoEconometria/rquasar-benchmarks) for measured,
+honest numbers. The user never sees Rust -- the API stays the same.
 
 ```{r rust_read, eval = FALSE}
 # Read a 50M-row CSV -- 10-30x faster than read.csv()
@@ -258,19 +261,17 @@ qsr_fast_filter("data/logs.csv", col = "status", op = "eq", value = 200)
 
 ### Adaptive Process Isolation
 
-For files larger than 10MB, QUASAR automatically runs Polars in a
+For files larger than 128MB, QUASAR automatically runs Polars in a
 separate subprocess using all available CPU cores. This eliminates
 memory conflicts between Rust and R while maximizing parallelism.
 Smaller files use a direct single-threaded call with zero overhead.
 
 ```{r benchmark, eval = FALSE}
-# Compare QUASAR vs Base R on your own data
+# Compare QUASAR vs base R on your own data
 qsr_benchmark("data/big_file.csv")
 
-# Typical results (1M rows, 45MB CSV):
-# Polars/Rust: 0.18s
-# Base R:      2.65s
-# Speedup:     14.7x faster with QUASAR
+# Reports wall-clock and peak memory. See the benchmarks repo for the honest
+# comparison against data.table and dplyr.
 ```
 
 ## Design Philosophy

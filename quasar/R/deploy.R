@@ -44,7 +44,7 @@
 #' @export
 qsr_deploy <- function(type = c("shiny", "api"),
                        title = "QUASAR Dashboard",
-                       path = "deploy",
+                       path = file.path(tempdir(), "rquasar_deploy"),
                        models = NULL,
                        include = c("data", "models", "plots",
                                    "tables", "predictions"),

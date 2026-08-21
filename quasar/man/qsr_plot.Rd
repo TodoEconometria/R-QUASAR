@@ -18,7 +18,7 @@ qsr_plot(
   interactive = FALSE,
   theme = "quasar_academic",
   export = NULL,
-  output_dir = "outputs/figures",
+  output_dir = file.path(tempdir(), "rquasar_figures"),
   width = NULL,
   height = NULL,
   dpi = 300,

@@ -10,7 +10,7 @@ qsr_table(
   format = NULL,
   caption = NULL,
   export = NULL,
-  output_dir = "outputs/tables",
+  output_dir = file.path(tempdir(), "rquasar_tables"),
   stars = TRUE,
   notes = NULL,
   model = "last",

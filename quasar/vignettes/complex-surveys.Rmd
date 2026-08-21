@@ -1,0 +1,72 @@
+---
+title: "Complex Survey Designs: Validate, Model, and Hand Off"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Complex Survey Designs: Validate, Model, and Hand Off}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = requireNamespace("survey", quietly = TRUE)
+)
+```
+
+## Know the division of labor
+
+`rquasar` speeds up the *plumbing* around survey microdata — validation,
+harmonization, and publication-ready output. It is **not** a design-based
+inference engine, and it does not pretend to be. For estimates that account for
+weights, strata, and finite-population corrections, the
+[`survey`](https://cran.r-project.org/package=survey) package is the standard,
+and `rquasar` hands off to it.
+
+This vignette uses the classic `api` data (California school Academic
+Performance Index) shipped with `survey`.
+
+```{r data}
+library(rquasar)
+data(api, package = "survey")   # loads apistrat, apiclus1, apisrs, ...
+
+# apistrat: a stratified sample with sampling weights (pw), strata (stype),
+# and finite-population correction (fpc)
+str(apistrat[, c("api00", "meals", "ell", "pw", "stype", "fpc")])
+```
+
+## 1. Validate with rquasar
+
+```{r validate}
+qsr_config()
+qsr_data(apistrat)
+qsr_validate(checks = "survey")
+```
+
+## 2. A quick descriptive model (unweighted)
+
+`qsr_model()` fits an ordinary model — useful for exploration, but it ignores
+the sampling design:
+
+```{r model}
+qsr_model(api00 ~ meals + ell)
+qsr_table(caption = "Table 1. OLS (unweighted, exploratory)")
+```
+
+## 3. Hand off to `survey` for design-based estimates
+
+When the numbers have to be correct for the design, build a design object and
+estimate with `survey`. `rquasar` does not do this for you — it points you here:
+
+```{r svy}
+design <- survey::svydesign(
+  ids = ~1, strata = ~stype, weights = ~pw, fpc = ~fpc, data = apistrat
+)
+survey::svymean(~api00, design)
+summary(survey::svyglm(api00 ~ meals + ell, design = design))$coefficients
+```
+
+The difference between the two model tables is the sampling design at work —
+which is exactly why design-based inference belongs in `survey`, not in a
+convenience wrapper.

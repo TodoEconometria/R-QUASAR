@@ -10,6 +10,7 @@ License: GPL (>= 3)
 Depends: 
     R (>= 4.2)
 Encoding: UTF-8
+LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Imports:
@@ -70,7 +71,13 @@ Suggests:
     kableExtra,
     sf,
     terra,
-    exactextractr
+    exactextractr,
+    gapminder,
+    wooldridge,
+    AER,
+    nycflights13,
+    survey,
+    palmerpenguins
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 URL: https://github.com/TodoEconometria/R-QUASAR

@@ -15,7 +15,7 @@ qsr_decision_log(
   code_ref = "",
   impact_n = "",
   alternative = "",
-  log_file = "decisions_log.md"
+  log_file = file.path(tempdir(), "decisions_log.md")
 )
 }
 \arguments{
