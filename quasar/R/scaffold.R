@@ -20,7 +20,7 @@
 #' }
 qsr_init <- function(name,
                      type    = c("academic", "bi_dashboard", "spark_pipeline"),
-                     author  = getOption("quasar.author", default = ""),
+                     author  = getOption("rquasar.author", default = ""),
                      path    = ".",
                      journal = c("r_journal", "jss", "apsr")) {
 
@@ -140,13 +140,13 @@ qsr_init <- function(name,
     file.path(project_path, "config", "prod.yml")
   )
 
-  # Create quasar.lock for reproducibility
+  # Create rquasar.lock for reproducibility
   lock <- list(
-    quasar_version = utils::packageVersion("quasar"),
+    rquasar_version = utils::packageVersion("rquasar"),
     r_version      = R.version.string,
     created        = format(Sys.time(), "%Y-%m-%dT%H:%M:%S")
   )
-  yaml::write_yaml(lock, file.path(project_path, "quasar.lock"))
+  yaml::write_yaml(lock, file.path(project_path, "rquasar.lock"))
 
   cli::cli_alert_success("Created config files")
 }
@@ -164,7 +164,7 @@ qsr_init <- function(name,
 # Framework: QUASAR | TodoEconometria
 # ============================================================
 
-library(quasar)
+library(rquasar)
 
 # Load project configuration
 qsr_config(config_path = "config/default.yml")

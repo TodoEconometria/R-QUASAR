@@ -42,7 +42,7 @@ with the QUASAR context engine.
 ## Quick Start
 
 ```{r quickstart}
-library(quasar)
+library(rquasar)
 
 qsr_config(random_seed = 42)
 qsr_data(mtcars)
@@ -57,7 +57,7 @@ qsr_cv(mpg ~ ., method = "rf", k = 5)
 ## Comparing Multiple Methods
 
 ```{r compare}
-library(quasar)
+library(rquasar)
 data(wage1, package = "wooldridge")
 
 qsr_config(random_seed = 42)

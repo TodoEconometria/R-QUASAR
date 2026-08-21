@@ -280,13 +280,13 @@ test_that("adaptive call uses direct mode for small files", {
   expect_equal(nrow(df), 100)
 })
 
-test_that("isolated subprocess works when quasar is installed", {
+test_that("isolated subprocess works when rquasar is installed", {
   skip_if_not_installed("callr")
-  # callr subprocess needs quasar formally installed (not just load_all)
-  # Check if quasar is in a library path (not just loaded via devtools)
-  installed <- nzchar(system.file(package = "quasar")) &&
-    file.exists(file.path(system.file(package = "quasar"), "libs"))
-  skip_if_not(installed, "quasar not formally installed (using load_all)")
+  # callr subprocess needs rquasar formally installed (not just load_all)
+  # Check if rquasar is in a library path (not just loaded via devtools)
+  installed <- nzchar(system.file(package = "rquasar")) &&
+    file.exists(file.path(system.file(package = "rquasar"), "libs"))
+  skip_if_not(installed, "rquasar not formally installed (using load_all)")
 
   tmp <- .make_test_csv(100)
   on.exit(unlink(tmp))

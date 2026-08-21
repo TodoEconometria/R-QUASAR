@@ -4,10 +4,10 @@
 
 #
 # This file was created with the following call:
-#   .Call("wrap__make_quasar_wrappers", use_symbols = TRUE, package_name = "quasar")
+#   .Call("wrap__make_rquasar_wrappers", use_symbols = TRUE, package_name = "rquasar")
 
 #' @usage NULL
-#' @useDynLib quasar, .registration = TRUE
+#' @useDynLib rquasar, .registration = TRUE
 NULL
 
 #' Read a CSV file using Polars (10-30x faster than read.csv).

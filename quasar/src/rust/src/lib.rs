@@ -280,7 +280,7 @@ fn series_to_robj(series: &Column) -> Robj {
 }
 
 extendr_module! {
-    mod quasar;
+    mod rquasar;
     fn rust_read_csv;
     fn rust_read_parquet;
     fn rust_describe;

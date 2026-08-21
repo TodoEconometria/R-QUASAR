@@ -29,7 +29,7 @@ in the survey module solves a real problem encountered while processing
 ## Complete Workflow
 
 ```{r workflow}
-library(quasar)
+library(rquasar)
 
 qsr_config(
   significance_level = 0.05,

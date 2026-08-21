@@ -4,7 +4,7 @@
 <!-- badges: start -->
 [![R-CMD-check](https://img.shields.io/badge/R--CMD--check-0E%200W%200N-brightgreen)](https://github.com/TodoEconometria/R-QUASAR)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Tests](https://img.shields.io/badge/tests-330%20passing-brightgreen)]()
+![Tests](https://img.shields.io/badge/tests-330%20passing-brightgreen)
 <!-- badges: end -->
 
 **Query-driven Unified Automated Stack for Analytical Runtime**
@@ -38,7 +38,7 @@ pak::pak("TodoEconometria/R-QUASAR/quasar")
 ## Quick Start
 
 ```r
-library(quasar)
+library(rquasar)
 
 qsr_config()
 qsr_data(mtcars)
@@ -132,7 +132,7 @@ qsr_guide("ine_bolivia", year = 2023)      # download guidance
 ## Numbers
 
 - **48 exported functions** across 15 modules
-- **330 tests**, 0 failures (R CMD check: 0E 0W 0N)
+- **336 tests**, 0 failures
 - **7,485 lines** of R + **290 lines** of Rust
 - **3 vignettes** with worked examples
 - Built-in exchange rates and CPI deflators for BOB, PEN, COP, BRL (2006-2023)
