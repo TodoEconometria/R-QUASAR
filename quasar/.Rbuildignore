@@ -12,6 +12,11 @@
 ^src/rust/target$
 ^src/Makevars$
 ^src/Makevars\.win$
+^src/.*\.o$
+^src/.*\.(so|dll|dylib)$
+^src/symbols\.rds$
+^cran-comments\.md$
+^\.github$
 ^outputs$
 ^tmp_.*\.R$
 ^docs$

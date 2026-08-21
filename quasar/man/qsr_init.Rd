@@ -7,7 +7,7 @@
 qsr_init(
   name,
   type = c("academic", "bi_dashboard", "spark_pipeline"),
-  author = getOption("quasar.author", default = ""),
+  author = getOption("rquasar.author", default = ""),
   path = ".",
   journal = c("r_journal", "jss", "apsr")
 )

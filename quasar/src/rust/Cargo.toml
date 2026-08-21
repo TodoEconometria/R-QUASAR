@@ -1,5 +1,5 @@
 [package]
-name = 'quasar'
+name = 'rquasar'
 publish = false
 version = '0.1.0'
 edition = '2021'
@@ -7,7 +7,7 @@ rust-version = '1.65'
 
 [lib]
 crate-type = ['staticlib']
-name = 'quasar'
+name = 'rquasar'
 
 [dependencies]
 extendr-api = '0.8.1'

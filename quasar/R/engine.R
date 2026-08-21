@@ -29,11 +29,11 @@
   callr::r(
     function(fn_name, fn_args, cores) {
       Sys.setenv(POLARS_MAX_THREADS = as.character(cores))
-      fn <- get(fn_name, envir = asNamespace("quasar"))
+      fn <- get(fn_name, envir = asNamespace("rquasar"))
       do.call(fn, fn_args)
     },
     args = list(fn_name = rust_fn, fn_args = args, cores = n_cores),
-    package = "quasar"
+    package = "rquasar"
   )
 }
 
@@ -57,13 +57,13 @@
       error = function(e) {
         # Fallback to direct call if subprocess fails
         # (e.g., package not formally installed during development)
-        fn <- get(rust_fn, envir = asNamespace("quasar"))
+        fn <- get(rust_fn, envir = asNamespace("rquasar"))
         do.call(fn, args)
       }
     )
   } else {
     # Small file or callr not available: direct single-threaded call
-    fn <- get(rust_fn, envir = asNamespace("quasar"))
+    fn <- get(rust_fn, envir = asNamespace("rquasar"))
     do.call(fn, args)
   }
 }

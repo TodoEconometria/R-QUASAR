@@ -29,7 +29,7 @@ data -> insights -> output.
 ## Quick Start: A Complete Analysis
 
 ```{r quickstart, eval = FALSE}
-library(quasar)
+library(rquasar)
 
 # 1. Configure once
 qsr_config()
@@ -157,7 +157,7 @@ qsr_python("sklearn.linear_model", fn = "LinearRegression",
 formatting:
 
 ```{r tables_demo}
-library(quasar)
+library(rquasar)
 
 model <- lm(mpg ~ wt + hp, data = mtcars)
 qsr_table(model, caption = "Table 1. OLS Estimates of Fuel Efficiency")
@@ -221,7 +221,7 @@ Here is a realistic academic workflow -- from database to publication -- in
 10 lines:
 
 ```{r pipeline, eval = FALSE}
-library(quasar)
+library(rquasar)
 
 qsr_config(output_format = "apa7")
 qsr_db("sqlite", dbname = "study_data.sqlite", table = "responses")

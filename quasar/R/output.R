@@ -1138,7 +1138,7 @@ qsr_report <- function(template      = "journal_article",
 
   tex_template <- journal_map[journal]
   if (!is.na(tex_template)) {
-    template_path <- system.file("templates", tex_template, package = "quasar")
+    template_path <- system.file("templates", tex_template, package = "rquasar")
     if (file.exists(template_path)) {
       # Copy template to output dir for user to fill in
       tex_out <- file.path(output_dir, paste0(journal, "_template.tex"))
@@ -1206,7 +1206,7 @@ qsr_report <- function(template      = "journal_article",
     "---\n\n",
     "```{r setup, include=FALSE}\n",
     "knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)\n",
-    "library(quasar)\n",
+    "library(rquasar)\n",
     "```\n\n",
     paste(sections, collapse = "\n")
   )

@@ -1,7 +1,7 @@
 TARGET_DIR = ./rust/target
 LIBDIR = $(TARGET_DIR)/@LIBDIR@
-STATLIB = $(LIBDIR)/libquasar.a
-PKG_LIBS = -L$(LIBDIR) -lquasar
+STATLIB = $(LIBDIR)/librquasar.a
+PKG_LIBS = -L$(LIBDIR) -lrquasar
 
 all: $(SHLIB) rust_clean
 
