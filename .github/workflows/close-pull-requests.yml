@@ -1,0 +1,39 @@
+name: Close pull requests
+
+# This project evaluates proposals (issues), not patches. Pull requests are
+# closed automatically. See CONTRIBUTING.md.
+
+on:
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  autoclose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const body = [
+              "Thanks for your interest. This project does not accept unsolicited pull requests, so this PR is being closed automatically.",
+              "",
+              "We evaluate **proposals, not patches**. Please open an issue describing the problem, the purpose, and your reasoning — see [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md).",
+              "",
+              "Note: AI-generated code, documentation, or images, and duplicated or derivative content, are not accepted."
+            ].join("\n");
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: body
+            });
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              state: "closed"
+            });
