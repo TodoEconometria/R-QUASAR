@@ -1,11 +1,14 @@
 
-# QUASAR <img src="man/figures/logo.png" align="right" height="139" alt="" />
+# rquasar <img src="man/figures/logo.png" align="right" height="120" alt="TodoEconometria" />
 
 <!-- badges: start -->
-[![R-CMD-check](https://img.shields.io/badge/R--CMD--check-0E%200W%200N-brightgreen)](https://github.com/TodoEconometria/R-QUASAR)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-![Tests](https://img.shields.io/badge/tests-330%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-336%20passing-brightgreen)
+![R](https://img.shields.io/badge/R-%3E%3D%204.2-blue)
 <!-- badges: end -->
+
+> **QUASAR** — Query-Driven Unified Automated Stack for Analytical Runtime
+> By **Juan Marcelo Gutierrez Miranda** · [TodoEconometria](https://github.com/TodoEconometria)
 
 **Query-driven Unified Automated Stack for Analytical Runtime**
 

@@ -29,7 +29,7 @@
 #' @param sheet Character or integer. Sheet name/number for Excel files.
 #'   Default 1.
 #' @param cache Logical. Cache downloads to avoid re-downloading. Default TRUE.
-#' @param cache_dir Character. Cache directory. Default "data/raw/.cache".
+#' @param cache_dir Character. Cache directory. Default a per-user cache dir.
 #' @param auth Named list. Authentication: `list(type = "bearer",
 #'   token = "xxx")` or `list(type = "basic", user = "x", pass = "y")`.
 #'   Default NULL (no auth).
@@ -77,7 +77,7 @@ qsr_download <- function(url,
                          format = "auto",
                          sheet = 1,
                          cache = TRUE,
-                         cache_dir = file.path("data", "raw", ".cache"),
+                         cache_dir = tools::R_user_dir("rquasar", "cache"),
                          auth = NULL,
                          headers = NULL,
                          retry = 3L,
@@ -231,7 +231,7 @@ qsr_load_folder <- function(path,
       extract_dir <- file.path(path, tools::file_path_sans_ext(basename(zf)))
       if (!dir.exists(extract_dir)) {
         dir.create(extract_dir, recursive = TRUE)
-        utils::unzip(zf, exdir = extract_dir)
+        .qsr_safe_unzip(zf, extract_dir)
         cli::cli_alert_info("Extracted: {.file {basename(zf)}} -> {.file {basename(extract_dir)}/}")
       }
     }
@@ -453,13 +453,32 @@ qsr_load_folder <- function(path,
   )
 }
 
+#' Safely unzip an archive: reject path traversal / absolute paths and cap the
+#' uncompressed size and entry count (zip-bomb guard) before extracting.
+#' @keywords internal
+.qsr_safe_unzip <- function(zipfile, exdir) {
+  info <- utils::unzip(zipfile, list = TRUE)
+  bad <- grepl("^([/\\\\]|[A-Za-z]:)", info$Name) | grepl("\\.\\.", info$Name)
+  if (any(bad)) {
+    cli::cli_abort("Refusing to extract archive: unsafe path {.val {info$Name[bad][1]}}.")
+  }
+  if (nrow(info) > 10000L) {
+    cli::cli_abort("Refusing to extract archive: too many entries ({nrow(info)}).")
+  }
+  total <- sum(info$Length, na.rm = TRUE)
+  if (isTRUE(total > 2 * 1024^3)) {
+    cli::cli_abort("Refusing to extract archive: uncompressed size too large.")
+  }
+  utils::unzip(zipfile, exdir = exdir)
+}
+
 #' @keywords internal
 .qsr_dl_read_zip <- function(zipfile, sheet, ...) {
   tmp_dir <- tempfile("qsr_zip_")
   dir.create(tmp_dir)
   on.exit(unlink(tmp_dir, recursive = TRUE))
 
-  utils::unzip(zipfile, exdir = tmp_dir)
+  .qsr_safe_unzip(zipfile, tmp_dir)
 
   # Find data files inside the ZIP (priority order)
   all_files <- list.files(tmp_dir, recursive = TRUE, full.names = TRUE)
@@ -499,7 +518,8 @@ qsr_load_folder <- function(path,
   age_days <- as.numeric(difftime(Sys.time(), file.mtime(cache_file), units = "days"))
   if (age_days > 7) return(NULL)
 
-  tryCatch(readRDS(cache_file), error = function(e) NULL)
+  obj <- tryCatch(readRDS(cache_file), error = function(e) NULL)
+  if (is.data.frame(obj)) obj else NULL
 }
 
 #' @keywords internal

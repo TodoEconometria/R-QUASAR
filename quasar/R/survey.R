@@ -485,7 +485,7 @@ qsr_decision_log <- function(id,
                              code_ref = "",
                              impact_n = "",
                              alternative = "",
-                             log_file = "decisions_log.md") {
+                             log_file = file.path(tempdir(), "decisions_log.md")) {
 
   entry <- paste0(
     "\n### [", id, "] ", title, "\n\n",

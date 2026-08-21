@@ -1,0 +1,71 @@
+---
+title: "Fast Data with the Rust Backend"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Fast Data with the Rust Backend}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = requireNamespace("nycflights13", quietly = TRUE)
+)
+```
+
+## Operations that never fully load into R
+
+`rquasar` ships a Rust backend (extendr + Polars) that runs aggregations,
+filters and column selection **directly on a file**, streaming it rather than
+reading it whole into memory. This vignette uses `nycflights13::flights`
+(336,776 rows) written to a temporary CSV, which stands in for the multi-gigabyte
+files the backend is built for.
+
+```{r write}
+library(rquasar)
+
+csv <- file.path(tempdir(), "flights.csv")
+# Write missing values as empty fields (na = "") so the Polars reader treats
+# them as null; R's default "NA" marker is not recognized as null by Polars.
+write.csv(nycflights13::flights, csv, row.names = FALSE, na = "")
+```
+
+## Group-by aggregation on the file
+
+Mean departure delay per carrier — computed by Polars on the file, only the
+result returns to R:
+
+```{r group}
+qsr_fast_group(csv, by = "carrier", col = "dep_delay", fn = "mean")
+```
+
+## Filter on the file
+
+Keep only long-haul flights (distance > 2500 miles) without materializing the
+rest:
+
+```{r filter}
+long_haul <- qsr_fast_filter(csv, col = "distance", op = "gt", value = 2500)
+nrow(long_haul)
+```
+
+## Read a fast preview
+
+Read the first rows, keeping only the columns you ask for:
+
+```{r read}
+qsr_read(csv, columns = c("carrier", "dep_delay", "distance"), n_rows = 5)
+```
+
+## Where it wins, and where it does not
+
+The backend's real advantage is **peak memory**: because the data never fully
+lands in R, it uses a small fraction of the memory of `data.table` or `dplyr` —
+the edge that matters when a file does not fit comfortably in RAM. On
+**wall-clock**, `data.table` is faster on data that already fits in memory, and
+`rquasar` does not claim otherwise. Measured, reproducible timings (wall-clock
+**and** peak memory) against `data.table` and `dplyr` live in the companion
+repository,
+[rquasar-benchmarks](https://github.com/TodoEconometria/rquasar-benchmarks).

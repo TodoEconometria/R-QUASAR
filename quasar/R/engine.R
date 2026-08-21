@@ -11,7 +11,8 @@
 # Nobody else does this in R.
 
 # Size threshold for switching to subprocess (bytes)
-.QSR_PARALLEL_THRESHOLD <- 10 * 1024 * 1024  # 10 MB
+.QSR_PARALLEL_THRESHOLD <- 128 * 1024 * 1024  # 128 MB (below this, run in-process:
+# the callr subprocess startup would dominate the Polars computation for medium files)
 
 #' Run a Rust/Polars function in an isolated subprocess
 #'
@@ -159,6 +160,13 @@ qsr_read <- function(path,
   # Remove metadata columns and convert to data.frame
   data_cols <- setdiff(names(result), c("_elapsed_secs", "_nrows"))
   df <- as.data.frame(result[data_cols], stringsAsFactors = FALSE)
+
+  # Column projection: return the requested subset. Applied after the read;
+  # Polars-level projection pushdown is not yet wired for the CSV reader.
+  if (!is.null(columns)) {
+    keep <- intersect(columns, names(df))
+    if (length(keep)) df <- df[, keep, drop = FALSE]
+  }
 
   cli::cli_alert_success(
     "Read {.val {nrows}} rows x {.val {length(data_cols)}} cols from {.file {basename(path)}} in {.val {round(elapsed, 3)}}s {.emph (Polars/Rust)}"

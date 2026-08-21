@@ -10,7 +10,7 @@ qsr_download(
   format = "auto",
   sheet = 1,
   cache = TRUE,
-  cache_dir = file.path("data", "raw", ".cache"),
+  cache_dir = tools::R_user_dir("rquasar", "cache"),
   auth = NULL,
   headers = NULL,
   retry = 3L,
@@ -32,7 +32,7 @@ Default 1.}
 
 \item{cache}{Logical. Cache downloads to avoid re-downloading. Default TRUE.}
 
-\item{cache_dir}{Character. Cache directory. Default "data/raw/.cache".}
+\item{cache_dir}{Character. Cache directory. Default a per-user cache dir.}
 
 \item{auth}{Named list. Authentication: \code{list(type = "bearer", token = "xxx")} or \code{list(type = "basic", user = "x", pass = "y")}.
 Default NULL (no auth).}
