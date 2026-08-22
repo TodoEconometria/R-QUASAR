@@ -10,8 +10,6 @@
 > **QUASAR** — Query-Driven Unified Automated Stack for Analytical Runtime
 > By **Juan Marcelo Gutierrez Miranda** · [TodoEconometria](https://github.com/TodoEconometria)
 
-**Query-driven Unified Automated Stack for Analytical Runtime**
-
 > The R framework for applied economists who need to go from survey
 > microdata to publication-ready output without boilerplate.
 
@@ -26,8 +24,8 @@ automatically.
   GEIH, ENIGH)
 - Researchers who need APA7/Chicago tables, coefficient plots, and LaTeX
   export in minutes, not hours
-- Teams processing large panel datasets (100K+ observations) who want
-  Rust-level speed without leaving R
+- Teams processing large datasets (100K+ observations) who want
+  out-of-core, low-memory file operations without leaving R
 
 ## Installation
 
@@ -64,7 +62,7 @@ ggplot2 theme blocks.
 | Convert BOB/PEN/COP to constant USD | Write exchange rate logic | `qsr_currency()` (built-in rates 2006-2023) |
 | Validate survey data quality | Ad hoc checks | `qsr_validate(checks = "survey")` |
 | Log research decisions for replication | README notes | `qsr_decision_log()` structured markdown |
-| Read 50M-row CSV fast | `data.table::fread()` | `qsr_read()` Polars/Rust backend |
+| Work on a large CSV without loading it into RAM | Manual chunking | `qsr_read()` / `qsr_fast_*()` Polars/Rust backend |
 | APA7 table from model | 15-25 lines (broom + gt) | `qsr_table()` |
 
 ## Core Modules
@@ -72,8 +70,8 @@ ggplot2 theme blocks.
 ### Context Engine
 ```r
 qsr_config(significance_level = 0.05, random_seed = 42)
-qsr_data(survey_panel)
-qsr_model(log_income ~ education + indigenous, type = "probit")
+qsr_data(qsr_survey)              # synthetic survey panel bundled with the package
+qsr_model(log_income ~ education + experience + indigenous)
 
 # Everything downstream reads from context:
 qsr_table()
@@ -82,12 +80,14 @@ qsr_plot(type = "coefficient")
 
 ### Survey Microdata Tools
 ```r
+qsr_data(qsr_survey)                               # bundled synthetic panel
 qsr_normalize_text(column = "crop_name",
                    dictionary = c("coca", "cafe", "cacao"))
-qsr_crosswalk(column = "ubigeo", crosswalk = "crosswalk_2017.csv",
+qsr_crosswalk(column = "ubigeo",
+              crosswalk = data.frame(old = "0502", new = "0503"),
               year_column = "year", apply_before = 2017)
-qsr_currency(columns = "ingreso", from_currency = "PEN", base_year = 2015)
-qsr_validate(checks = "panel")
+qsr_currency(columns = "ingreso_laboral", from_currency = "PEN", base_year = 2015)
+qsr_validate(checks = "survey")
 ```
 
 ### Machine Learning (12 methods)
@@ -112,9 +112,13 @@ qsr_fast_filter("logs.csv", col = "status", op = "eq", value = 200)
 ```
 
 The Polars engine performs aggregations, filtering, and sorting directly
-on files without loading them fully into R. For pure CSV reading speed,
-`data.table::fread()` remains faster. The QUASAR backend shines on
-file-level operations and will improve with release builds.
+on files without loading them fully into R. Its real advantage is **peak
+memory** — a fraction of what `data.table` or `dplyr` use — which matters
+when a file does not fit comfortably in RAM. For raw speed on data that
+already fits in memory, `data.table::fread()` remains faster, and QUASAR
+says so. Measured, honest benchmarks (wall-clock **and** memory) live in the
+[rquasar-benchmarks](https://github.com/TodoEconometria/rquasar-benchmarks)
+companion repository.
 
 ### Output Engine (20 plot types)
 ```r
@@ -135,10 +139,19 @@ qsr_guide("ine_bolivia", year = 2023)      # download guidance
 ## Numbers
 
 - **48 exported functions** across 15 modules
-- **336 tests**, 0 failures
-- **7,485 lines** of R + **290 lines** of Rust
-- **3 vignettes** with worked examples
+- **336 tests**, 0 failures — `R CMD check --as-cran`: 0 errors, 0 warnings
+- **4 vignettes** with worked, runnable examples
+- **`qsr_survey`** — a bundled synthetic household-survey dataset (`?qsr_survey`)
 - Built-in exchange rates and CPI deflators for BOB, PEN, COP, BRL (2006-2023)
+
+## Vignettes
+
+- **Getting Started** — the five-call promise on `mtcars`
+- **From Survey Microdata to Publication Tables** — the survey toolchain, on
+  `wooldridge::wage1` (Mincer) and the bundled `qsr_survey`
+- **Fast Data with the Rust Backend** — file operations on `nycflights13`
+- **Complex Survey Designs** — validation on `survey::api`, handing design-based
+  inference to the `survey` package
 
 ## Validated on Real Data
 
