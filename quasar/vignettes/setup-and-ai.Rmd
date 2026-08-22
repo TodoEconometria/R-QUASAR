@@ -1,0 +1,105 @@
+---
+title: "Setup: Installation, Requirements, and AI"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Setup: Installation, Requirements, and AI}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+## Requirements
+
+| Component | Needed for | Version |
+|---|---|---|
+| **R** | everything | >= 4.2 |
+| **Rust toolchain** (`cargo`, `rustc`) + `xz` | the Polars/Rust backend (`qsr_read`, `qsr_fast_*`) | rustc >= 1.65 |
+| `pdftools` / `haven` | reading PDF / SPSS-Stata files in the AI helpers | Suggests |
+
+Install the Rust toolchain with [rustup](https://rustup.rs). On **Windows** also
+install Rtools and use the GNU toolchain
+(`rustup default stable-x86_64-pc-windows-gnu`); on macOS/Linux the default host
+toolchain works.
+
+## Installation
+
+```{r install}
+# development version
+# install.packages("pak")
+pak::pak("TodoEconometria/R-QUASAR/quasar")
+
+# once on CRAN
+install.packages("rquasar")
+```
+
+## Verify it works
+
+```{r verify}
+library(rquasar)
+
+# context engine
+qsr_config()
+qsr_data(mtcars)
+qsr_model(mpg ~ wt + hp)
+qsr_table()
+
+# Rust backend (operates on a file)
+tmp <- tempfile(fileext = ".csv")
+write.csv(mtcars, tmp, row.names = FALSE)
+qsr_fast_group(tmp, by = "cyl", col = "mpg", fn = "mean")
+```
+
+## AI-assisted workflows
+
+`rquasar` includes optional AI helpers for survey work:
+
+- `qsr_ai_review()` — compare two codebooks / questionnaires across waves.
+- `qsr_ai_classify()` — classify free-text fields (crops, ethnicities) into
+  standard categories, handling typos and dialect.
+- `qsr_ai_flag()` — surface data-quality issues from summary statistics.
+
+They are entirely optional: the rest of the package works without them.
+
+### Two backends
+
+**1. Anthropic (Claude) — the default.** Set your key once per session (or in
+`.Renviron`):
+
+```{r anthropic}
+Sys.setenv(ANTHROPIC_API_KEY = "sk-ant-...")
+
+qsr_ai_classify(
+  data       = survey_data,
+  column     = "crop_name",
+  categories = c("coca", "coffee", "cacao", "banana", "other")
+)
+```
+
+**2. Local (Ollama) — runs on your machine, no API key, nothing leaves your
+computer.** Install [Ollama](https://ollama.com) and pull a model
+(`ollama pull llama3.1`), then:
+
+```{r ollama}
+qsr_ai_classify(
+  data       = survey_data,
+  column     = "crop_name",
+  categories = c("coca", "coffee", "cacao", "banana", "other"),
+  provider   = "ollama"
+)
+
+# pick the model and host if you like:
+Sys.setenv(QSR_OLLAMA_MODEL = "llama3.1",
+           OLLAMA_HOST = "http://localhost:11434")
+```
+
+### Privacy
+
+- **`provider = "anthropic"` sends your data to Anthropic's API.** Do **not** use
+  it on confidential or personal microdata.
+- **`provider = "ollama"` keeps everything local** — no data is transmitted and
+  no key is used. Prefer it for sensitive data.
+- The Anthropic key is read from the environment and sent only as a request
+  header; it is never printed, logged, or returned in any result object.

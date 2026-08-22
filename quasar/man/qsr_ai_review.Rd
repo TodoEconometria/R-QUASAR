@@ -9,7 +9,8 @@ qsr_ai_review(
   doc_after,
   focus = "all",
   api_key = NULL,
-  model = "claude-sonnet-4-6-20250514"
+  model = "claude-sonnet-4-6-20250514",
+  provider = c("anthropic", "ollama")
 )
 }
 \arguments{
@@ -24,6 +25,7 @@ qsr_ai_review(
 \code{ANTHROPIC_API_KEY} environment variable.}
 
 \item{model}{Character. Claude model to use. Default \code{"claude-sonnet-4-6-20250514"}.}
+\item{provider}{Character. "anthropic" (default) or "ollama" (local Ollama server, no API key -- data never leaves the machine).}
 }
 \value{
 A list with \code{findings} (character vector of changes detected),

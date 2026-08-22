@@ -20,9 +20,12 @@ First public release.
 * `qsr_survey`: a bundled, fully synthetic household-survey dataset (shaped like
   ENAHO / Encuesta de Hogares, with no real observations) so every survey tool
   can be shown on runnable, self-contained data. See `?qsr_survey`.
-* Four executable vignettes: *Getting Started*, *From Survey Microdata to
-  Publication Tables*, *Fast Data with the Rust Backend*, and *Complex Survey
-  Designs*.
+* Vignettes for *Getting Started*, *From Survey Microdata to Publication
+  Tables*, *Fast Data with the Rust Backend*, *Complex Survey Designs*, and
+  *Setup: Installation, Requirements, and AI*.
+* AI helpers (`qsr_ai_review()`, `qsr_ai_classify()`, `qsr_ai_flag()`) support a
+  **local Ollama backend** via `provider = "ollama"` in addition to Anthropic
+  Claude: no API key, and the data never leaves the machine.
 
 ## Security
 
