@@ -48,14 +48,12 @@ deflators. Handles BOB, PEN, COP, BRL, and any other currency
 with available exchange rate data.
 }
 \examples{
-\dontrun{
-qsr_data(bolivia_survey)
-qsr_currency(
+qsr_data(qsr_survey)
+usd <- qsr_currency(
   columns = c("ingreso_laboral", "ingreso_total"),
-  from_currency = "BOB",
+  from_currency = "PEN",
   base_year = 2015,
   year_column = "year"
 )
-}
-
+head(usd[, c("ingreso_laboral", "ingreso_laboral_usd")])
 }

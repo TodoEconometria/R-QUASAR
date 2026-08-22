@@ -24,6 +24,12 @@ fn ensure_polars_init() {
     });
 }
 
+// R writes missing values as "NA" (and sometimes empty); tell the Polars CSV
+// reader to treat both as null so R-exported CSVs parse cleanly on typed columns.
+fn na_nulls() -> Option<NullValues> {
+    Some(NullValues::AllColumns(vec!["NA".into(), "".into()]))
+}
+
 /// Read a CSV file using Polars (10-30x faster than read.csv).
 /// @param path Character. Path to the CSV file.
 /// @param n_rows Integer or NULL. Max rows to read.
@@ -33,7 +39,7 @@ fn rust_read_csv(path: &str, n_rows: Nullable<i32>) -> List {
     ensure_polars_init();
     let start = Instant::now();
 
-    let mut reader = LazyCsvReader::new(path);
+    let mut reader = LazyCsvReader::new(path).with_null_values(na_nulls());
     if let NotNull(n) = n_rows {
         reader = reader.with_n_rows(Some(n as usize));
     }
@@ -73,6 +79,7 @@ fn rust_read_parquet(path: &str) -> List {
 fn rust_describe(path: &str) -> List {
     ensure_polars_init();
     let df = LazyCsvReader::new(path)
+        .with_null_values(na_nulls())
         .finish()
         .unwrap_or_else(|e| panic!("QUASAR: Failed to read CSV '{}': {}", path, e))
         .collect()
@@ -124,6 +131,7 @@ fn rust_group_agg(path: &str, group_col: &str, agg_col: &str, agg_fn: &str) -> L
     let start = Instant::now();
 
     let lazy = LazyCsvReader::new(path)
+        .with_null_values(na_nulls())
         .finish()
         .unwrap_or_else(|e| panic!("QUASAR: Failed to read CSV '{}': {}", path, e));
 
@@ -160,6 +168,7 @@ fn rust_filter(path: &str, col_name: &str, op: &str, value: f64) -> List {
     let start = Instant::now();
 
     let lazy = LazyCsvReader::new(path)
+        .with_null_values(na_nulls())
         .finish()
         .unwrap_or_else(|e| panic!("QUASAR: Failed to read CSV '{}': {}", path, e));
 
@@ -193,6 +202,7 @@ fn rust_sort(path: &str, by: &str, descending: bool) -> List {
     let start = Instant::now();
 
     let lazy = LazyCsvReader::new(path)
+        .with_null_values(na_nulls())
         .finish()
         .unwrap_or_else(|e| panic!("QUASAR: Failed to read CSV '{}': {}", path, e));
 

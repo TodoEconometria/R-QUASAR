@@ -437,7 +437,13 @@ qsr_report <- function(template      = "journal_article",
       names(glance_stats)
     )
     if (length(available) > 0) {
-      tbl <- gtsummary::add_glance_table(tbl, include = available)
+      # ASCII labels ("R2" not "R²") so the rendered table stays ASCII and
+      # vignettes build under any locale (some Windows R CMD build setups write
+      # the knitted markdown in native encoding, which breaks pandoc on UTF-8).
+      tbl <- gtsummary::add_glance_table(
+        tbl, include = available,
+        label = list(r.squared = "R2", adj.r.squared = "Adj. R2")
+      )
     }
   }, error = function(e) NULL)
   tbl

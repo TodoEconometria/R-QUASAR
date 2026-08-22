@@ -46,14 +46,12 @@ inconsistent capitalization, abbreviations, and dialect variants.
 Uses Levenshtein distance for fuzzy matching with human review.
 }
 \examples{
-\dontrun{
-qsr_data(survey)
-qsr_normalize_text(
+qsr_data(qsr_survey)
+clean <- qsr_normalize_text(
   column = "crop_name",
   dictionary = c("coca", "cafe", "cacao", "banana", "arroz"),
   max_dist = 2,
-  review = TRUE
+  review = FALSE
 )
-}
-
+table(clean$crop_name_clean)
 }

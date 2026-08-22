@@ -8,6 +8,13 @@ vignette: >
 ---
 
 ```{r setup, include = FALSE}
+options(cli.unicode = FALSE, useFancyQuotes = FALSE)
+# gt tables self-contained: avoids an HTML dependency in the pandoc header
+# that some Windows rmarkdown setups write in native encoding (breaks pandoc).
+suppressWarnings(suppressMessages({library(knitr); library(gt)}))
+try(utils::assignInNamespace("knit_print.gt_tbl", function(x, ...)
+  knitr::asis_output(gsub("\u00b2", "2", gsub("\u00a0", " ", as.character(gt::as_raw_html(x))))),
+  ns = "gt"), silent = TRUE)
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",

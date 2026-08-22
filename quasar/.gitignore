@@ -5,3 +5,9 @@ mi_primer_proyecto/
 src/rust/vendor
 src/Makevars
 src/Makevars.win
+src/vendor
+src/rust/target
+src/*.o
+src/*.dll
+src/*.a
+src/symbols.rds

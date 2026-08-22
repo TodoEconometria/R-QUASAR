@@ -25,25 +25,15 @@ predefined or custom checks and reports results. Designed to catch
 the problems documented in DATA_CONSTRUCTION_PLAN.md.
 }
 \examples{
-\dontrun{
-qsr_data(cleaned_survey)
+qsr_data(qsr_survey)
 
-# Basic checks
-qsr_validate(checks = "basic")
+# Survey preset: weights, NA rate, negative monetary values
+qsr_validate(checks = "survey")
 
 # Custom checks
 qsr_validate(checks = list(
-  "No duplicate IDs" = function(df) {
-    if (any(duplicated(df$id))) "Duplicate IDs found" else TRUE
-  },
-  "Income positive" = function(df) {
-    if (any(df$income < 0, na.rm = TRUE)) "Negative income values" else TRUE
-  },
-  "Weight sums reasonable" = function(df) {
-    ws <- sum(df$weight, na.rm = TRUE)
-    if (ws < 1e6 || ws > 1e9) paste("Weight sum:", ws) else TRUE
+  "No duplicate ids" = function(df) {
+    if (any(duplicated(df$id))) "Duplicate ids found" else TRUE
   }
 ))
-}
-
 }
