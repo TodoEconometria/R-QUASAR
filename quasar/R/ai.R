@@ -21,6 +21,9 @@
 #' @param api_key Character. Anthropic API key. If `NULL`, reads from
 #'   `ANTHROPIC_API_KEY` environment variable.
 #' @param model Character. Claude model to use. Default `"claude-sonnet-4-6-20250514"`.
+#' @param provider Character. `"anthropic"` (default, Claude API) or `"ollama"`
+#'   (a local Ollama server -- no API key, nothing leaves the machine; set the
+#'   model with the `QSR_OLLAMA_MODEL` env var and the host with `OLLAMA_HOST`).
 #'
 #' @return A list with `findings` (character vector of changes detected),
 #'   `severity` (high/medium/low for each), and `raw_response`.
@@ -38,14 +41,17 @@ qsr_ai_review <- function(doc_before,
                            doc_after,
                            focus    = "all",
                            api_key  = NULL,
-                           model    = "claude-sonnet-4-6-20250514") {
+                           model    = "claude-sonnet-4-6-20250514",
+                           provider = c("anthropic", "ollama")) {
 
+  provider <- match.arg(provider)
   api_key <- api_key %||% Sys.getenv("ANTHROPIC_API_KEY")
-  if (api_key == "") {
+  if (provider == "anthropic" && api_key == "") {
     cli::cli_abort(c(
       "Anthropic API key not found.",
       "i" = "Set it with: {.code Sys.setenv(ANTHROPIC_API_KEY = 'your-key')}",
-      "i" = "Or pass it directly: {.code qsr_ai_review(..., api_key = 'your-key')}"
+      "i" = "Or pass it directly: {.code qsr_ai_review(..., api_key = 'your-key')}",
+      "i" = "Or run locally: {.code qsr_ai_review(..., provider = 'ollama')}"
     ))
   }
 
@@ -85,7 +91,7 @@ Report findings as a numbered list.",
     focus_instruction
   )
 
-  response <- .qsr_ai_call(prompt, api_key, model)
+  response <- .qsr_ai_call(prompt, api_key, model, provider)
 
   # Parse findings
   findings <- strsplit(response, "\n")[[1]]
@@ -123,6 +129,8 @@ Report findings as a numbered list.",
 #' @param api_key Character. Anthropic API key.
 #' @param batch_size Integer. Number of unique values to send per API call.
 #'   Default 100.
+#' @param provider Character. `"anthropic"` (default) or `"ollama"` (local, no
+#'   API key -- data never leaves the machine).
 #'
 #' @return The input data frame with a new column `{column}_classified`
 #'   and `{column}_confidence`.
@@ -142,11 +150,13 @@ qsr_ai_classify <- function(data,
                               categories,
                               context   = "",
                               api_key   = NULL,
-                              batch_size = 100) {
+                              batch_size = 100,
+                              provider  = c("anthropic", "ollama")) {
 
+  provider <- match.arg(provider)
   api_key <- api_key %||% Sys.getenv("ANTHROPIC_API_KEY")
-  if (api_key == "") {
-    cli::cli_abort("Anthropic API key not found. Set ANTHROPIC_API_KEY.")
+  if (provider == "anthropic" && api_key == "") {
+    cli::cli_abort("Anthropic API key not found. Set ANTHROPIC_API_KEY (or use provider = 'ollama').")
   }
 
   .qsr_require("httr2", "for AI module")
@@ -183,7 +193,7 @@ Values to classify:
       paste(batch, collapse = "\n")
     )
 
-    response <- .qsr_ai_call(prompt, api_key, "claude-haiku-4-5-20251001")
+    response <- .qsr_ai_call(prompt, api_key, "claude-haiku-4-5-20251001", provider)
 
     # Parse response
     lines <- strsplit(response, "\n")[[1]]
@@ -226,6 +236,8 @@ Values to classify:
 #'   `"outliers"`, `"wave_breaks"`, `"all"`.
 #' @param context Character. Context about the survey.
 #' @param api_key Character. Anthropic API key.
+#' @param provider Character. `"anthropic"` (default) or `"ollama"` (local, no
+#'   API key -- data never leaves the machine).
 #'
 #' @return A data frame with columns: `variable`, `issue`, `severity`,
 #'   `recommendation`.
@@ -242,11 +254,13 @@ Values to classify:
 qsr_ai_flag <- function(data,
                           checks  = "all",
                           context = "",
-                          api_key = NULL) {
+                          api_key = NULL,
+                          provider = c("anthropic", "ollama")) {
 
+  provider <- match.arg(provider)
   api_key <- api_key %||% Sys.getenv("ANTHROPIC_API_KEY")
-  if (api_key == "") {
-    cli::cli_abort("Anthropic API key not found. Set ANTHROPIC_API_KEY.")
+  if (provider == "anthropic" && api_key == "") {
+    cli::cli_abort("Anthropic API key not found. Set ANTHROPIC_API_KEY (or use provider = 'ollama').")
   }
 
   .qsr_require("httr2", "for AI module")
@@ -298,7 +312,7 @@ Focus on: impossible values, distribution anomalies, sudden jumps between waves,
     paste(summary_text, collapse = "\n")
   )
 
-  response <- .qsr_ai_call(prompt, api_key, "claude-sonnet-4-6-20250514")
+  response <- .qsr_ai_call(prompt, api_key, "claude-sonnet-4-6-20250514", provider)
 
   # Parse into structured output
   lines <- strsplit(response, "\n")[[1]]
@@ -335,9 +349,37 @@ Focus on: impossible values, distribution anomalies, sudden jumps between waves,
 # INTERNAL HELPERS - AI
 # ============================================================
 
-#' Call Claude API
+#' Call the LLM backend (Anthropic Claude, or a local Ollama server)
+#'
+#' provider = "ollama" sends the prompt to a local Ollama server
+#' (default http://localhost:11434, override with OLLAMA_HOST). Nothing leaves
+#' the machine and no API key is used. provider = "anthropic" (default) calls
+#' the Claude API with the key passed as a header (never logged or returned).
 #' @noRd
-.qsr_ai_call <- function(prompt, api_key, model = "claude-sonnet-4-6-20250514") {
+.qsr_ai_call <- function(prompt, api_key = NULL, model = NULL,
+                         provider = c("anthropic", "ollama")) {
+  provider <- match.arg(provider)
+
+  if (provider == "ollama") {
+    host <- Sys.getenv("OLLAMA_HOST", "http://localhost:11434")
+    # Ignore Claude model names passed by the callers; use a local model.
+    if (is.null(model) || startsWith(model, "claude")) {
+      model <- Sys.getenv("QSR_OLLAMA_MODEL", "llama3.1")
+    }
+    resp <- httr2::request(paste0(host, "/api/chat")) |>
+      httr2::req_body_json(list(
+        model    = model,
+        messages = list(list(role = "user", content = prompt)),
+        stream   = FALSE
+      )) |>
+      httr2::req_timeout(300) |>
+      httr2::req_perform()
+    parsed <- httr2::resp_body_json(resp)
+    return(parsed$message$content)
+  }
+
+  # Anthropic (Claude)
+  model <- model %||% "claude-sonnet-4-6-20250514"
   body <- list(
     model = model,
     max_tokens = 4096,

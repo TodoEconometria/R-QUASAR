@@ -10,7 +10,8 @@ qsr_ai_classify(
   categories,
   context = "",
   api_key = NULL,
-  batch_size = 100
+  batch_size = 100,
+  provider = c("anthropic", "ollama")
 )
 }
 \arguments{
@@ -27,6 +28,7 @@ disambiguation (e.g., "Rural Bolivian agricultural survey").}
 
 \item{batch_size}{Integer. Number of unique values to send per API call.
 Default 100.}
+\item{provider}{Character. "anthropic" (default) or "ollama" (local Ollama server, no API key -- data never leaves the machine).}
 }
 \value{
 The input data frame with a new column \verb{\{column\}_classified}

@@ -4,7 +4,13 @@
 \alias{qsr_ai_flag}
 \title{AI-assisted data quality flagging}
 \usage{
-qsr_ai_flag(data, checks = "all", context = "", api_key = NULL)
+qsr_ai_flag(
+  data,
+  checks = "all",
+  context = "",
+  api_key = NULL,
+  provider = c("anthropic", "ollama")
+)
 }
 \arguments{
 \item{data}{A data frame.}
@@ -15,6 +21,7 @@ qsr_ai_flag(data, checks = "all", context = "", api_key = NULL)
 \item{context}{Character. Context about the survey.}
 
 \item{api_key}{Character. Anthropic API key.}
+\item{provider}{Character. "anthropic" (default) or "ollama" (local Ollama server, no API key -- data never leaves the machine).}
 }
 \value{
 A data frame with columns: \code{variable}, \code{issue}, \code{severity},
@@ -30,7 +37,8 @@ data quality issues.
 flags <- qsr_ai_flag(
   data    = panel,
   checks  = "wave_breaks",
-  context = "Bolivia EH household survey, 2006-2024"
+  context = "Bolivia EH household survey, 2006-2024",
+  provider = c("anthropic", "ollama")
 )
 }
 }
