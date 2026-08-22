@@ -32,15 +32,14 @@
 #' @return Data frame with normalized column (invisibly).
 #'
 #' @examples
-#' \dontrun{
-#' qsr_data(survey)
-#' qsr_normalize_text(
+#' qsr_data(qsr_survey)
+#' clean <- qsr_normalize_text(
 #'   column = "crop_name",
 #'   dictionary = c("coca", "cafe", "cacao", "banana", "arroz"),
 #'   max_dist = 2,
-#'   review = TRUE
+#'   review = FALSE
 #' )
-#' }
+#' table(clean$crop_name_clean)
 #'
 #' @export
 qsr_normalize_text <- function(data = NULL,
@@ -162,21 +161,14 @@ qsr_normalize_text <- function(data = NULL,
 #' @return Data frame with harmonized geographic codes (invisibly).
 #'
 #' @examples
-#' \dontrun{
-#' # Peru ubigeo crosswalk
-#' qsr_crosswalk(
+#' qsr_data(qsr_survey)
+#' harmonized <- qsr_crosswalk(
 #'   column = "ubigeo",
-#'   crosswalk = "data/raw/spatial/peru/ubigeo_crosswalk_2017.csv",
+#'   crosswalk = data.frame(old = c("0502", "0602"), new = c("0503", "0699")),
 #'   year_column = "year",
 #'   apply_before = 2017
 #' )
-#'
-#' # Colombia DIVIPOLA
-#' qsr_crosswalk(
-#'   column = "cod_municipio",
-#'   crosswalk = data.frame(old = c("05001", "05002"), new = c("05001", "05899"))
-#' )
-#' }
+#' table(harmonized$ubigeo_harmonized)
 #'
 #' @export
 qsr_crosswalk <- function(data = NULL,
@@ -267,15 +259,14 @@ qsr_crosswalk <- function(data = NULL,
 #' @return Data frame with converted columns (invisibly).
 #'
 #' @examples
-#' \dontrun{
-#' qsr_data(bolivia_survey)
-#' qsr_currency(
+#' qsr_data(qsr_survey)
+#' usd <- qsr_currency(
 #'   columns = c("ingreso_laboral", "ingreso_total"),
-#'   from_currency = "BOB",
+#'   from_currency = "PEN",
 #'   base_year = 2015,
 #'   year_column = "year"
 #' )
-#' }
+#' head(usd[, c("ingreso_laboral", "ingreso_laboral_usd")])
 #'
 #' @export
 qsr_currency <- function(data = NULL,
@@ -363,26 +354,17 @@ qsr_currency <- function(data = NULL,
 #' @return Invisible TRUE if all pass, FALSE if any fail. Prints report.
 #'
 #' @examples
-#' \dontrun{
-#' qsr_data(cleaned_survey)
+#' qsr_data(qsr_survey)
 #'
-#' # Basic checks
-#' qsr_validate(checks = "basic")
+#' # Survey preset: weights, NA rate, negative monetary values
+#' qsr_validate(checks = "survey")
 #'
 #' # Custom checks
 #' qsr_validate(checks = list(
-#'   "No duplicate IDs" = function(df) {
-#'     if (any(duplicated(df$id))) "Duplicate IDs found" else TRUE
-#'   },
-#'   "Income positive" = function(df) {
-#'     if (any(df$income < 0, na.rm = TRUE)) "Negative income values" else TRUE
-#'   },
-#'   "Weight sums reasonable" = function(df) {
-#'     ws <- sum(df$weight, na.rm = TRUE)
-#'     if (ws < 1e6 || ws > 1e9) paste("Weight sum:", ws) else TRUE
+#'   "No duplicate ids" = function(df) {
+#'     if (any(duplicated(df$id))) "Duplicate ids found" else TRUE
 #'   }
 #' ))
-#' }
 #'
 #' @export
 qsr_validate <- function(data = NULL,

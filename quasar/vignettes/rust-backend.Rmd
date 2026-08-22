@@ -8,6 +8,7 @@ vignette: >
 ---
 
 ```{r setup, include = FALSE}
+options(cli.unicode = FALSE, useFancyQuotes = FALSE)
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
@@ -27,9 +28,7 @@ files the backend is built for.
 library(rquasar)
 
 csv <- file.path(tempdir(), "flights.csv")
-# Write missing values as empty fields (na = "") so the Polars reader treats
-# them as null; R's default "NA" marker is not recognized as null by Polars.
-write.csv(nycflights13::flights, csv, row.names = FALSE, na = "")
+write.csv(nycflights13::flights, csv, row.names = FALSE)
 ```
 
 ## Group-by aggregation on the file

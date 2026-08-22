@@ -45,20 +45,12 @@ Translates geographic codes between periods (e.g., ubigeo pre/post
 2017 in Peru, DIVIPOLA changes in Colombia, municipio codes in Bolivia).
 }
 \examples{
-\dontrun{
-# Peru ubigeo crosswalk
-qsr_crosswalk(
+qsr_data(qsr_survey)
+harmonized <- qsr_crosswalk(
   column = "ubigeo",
-  crosswalk = "data/raw/spatial/peru/ubigeo_crosswalk_2017.csv",
+  crosswalk = data.frame(old = c("0502", "0602"), new = c("0503", "0699")),
   year_column = "year",
   apply_before = 2017
 )
-
-# Colombia DIVIPOLA
-qsr_crosswalk(
-  column = "cod_municipio",
-  crosswalk = data.frame(old = c("05001", "05002"), new = c("05001", "05899"))
-)
-}
-
+table(harmonized$ubigeo_harmonized)
 }
