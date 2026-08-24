@@ -6,9 +6,8 @@ Rust/Polars backend for file-level operations on large datasets.
 
 ## Test environments
 
-* Local: Windows 11, R 4.6.1, Rust 1.97 (stable-x86_64-pc-windows-gnu)
-* [PENDIENTE antes de enviar] win-builder: R-release and R-devel
-* [PENDIENTE antes de enviar] R-hub v2: Linux (ubuntu-latest) and macOS
+* Local: Windows 11, R 4.6.1, Rust 1.97 (stable-x86_64-pc-windows-gnu) — 0 errors, 0 warnings, 1 note
+* win-builder: R-release (4.6.1) and R-devel — 0 errors, 0 warnings, 1 note
 
 ## R CMD check results
 
