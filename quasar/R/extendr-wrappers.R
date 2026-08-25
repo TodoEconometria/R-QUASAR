@@ -14,7 +14,9 @@ NULL
 #' @param path Character. Path to the CSV file.
 #' @param n_rows Integer or NULL. Max rows to read.
 #' @export
-rust_read_csv <- function(path, n_rows) .Call(wrap__rust_read_csv, path, n_rows)
+rust_read_csv <- function(path, n_rows, separator, columns) .Call(wrap__rust_read_csv, path, n_rows, separator, columns)
+
+rust_sink_parquet <- function(path, out, separator, columns) .Call(wrap__rust_sink_parquet, path, out, separator, columns)
 
 #' Read a Parquet file using Polars.
 #' @param path Character. Path to the Parquet file.

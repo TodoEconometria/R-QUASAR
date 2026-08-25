@@ -27,7 +27,11 @@ reports without the user rewriting the same scaffolding for every project. For
 datasets too large to hold comfortably in memory, file-level operations (reading,
 grouping, filtering, sorting) are delegated to a Rust backend built on `extendr`
 [@extendr] and Polars [@polars], so the same workflow scales from a few hundred
-rows to files of several gigabytes.
+rows to files of several gigabytes. The reader targets the messiness of real-world
+microdata directly —arbitrary field delimiters and non-UTF-8 encodings— and pushes
+column projection down to the scan, so wide files cost only the columns actually
+used. Inputs larger than memory can be streamed straight to Parquet in bounded
+memory, giving a reproducible columnar staging layer without a database server.
 
 The package ships with `qsr_survey`, a fully synthetic household-survey dataset
 shaped like national statistical office microdata but containing no real

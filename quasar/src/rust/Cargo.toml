@@ -15,6 +15,7 @@ polars = { version = '0.46', default-features = false, features = [
     'csv',
     'parquet',
     'lazy',
+    'streaming',
     'dtype-full',
     'strings',
     'temporal',

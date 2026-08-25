@@ -38,6 +38,49 @@
   )
 }
 
+#' Transcode a text file to a temporary UTF-8 copy (streaming, constant memory)
+#'
+#' Polars assumes UTF-8. Source files in single-byte encodings (latin1/ISO-8859-1,
+#' windows-1252) are converted here in binary chunks so accents and " n-tilde" survive
+#' and memory stays flat regardless of file size. Returns the temp file path.
+#'
+#' @param path Character. Source file path.
+#' @param from Character. Source encoding (e.g. "latin1").
+#' @param n_lines Integer or NULL. If set, transcode only the first `n_lines` + 1
+#'   lines (header + rows) instead of the whole file -- keeps sampling cheap on huge files.
+#' @param chunk Integer. Bytes per chunk for the full-file path. Default 32 MiB.
+#'
+#' @return Character. Path to the temporary UTF-8 file (caller unlinks it).
+#'
+#' @keywords internal
+.qsr_transcode_utf8 <- function(path, from, n_lines = NULL, chunk = 32L * 1024L^2) {
+  out <- tempfile(fileext = paste0(".", tools::file_ext(path)))
+
+  # Sampling: only the first header + n_lines rows are needed. Read them via a
+  # connection in the source encoding and write a UTF-8 connection -- no full pass.
+  if (!is.null(n_lines)) {
+    con_in <- file(path, "r", encoding = from)
+    con_out <- file(out, "w", encoding = "UTF-8")
+    on.exit({ close(con_in); close(con_out) }, add = TRUE)
+    lines <- readLines(con_in, n = as.integer(n_lines) + 1L, warn = FALSE)
+    writeLines(lines, con_out)
+    return(out)
+  }
+
+  # Full file: stream in binary chunks. Single-byte source encodings never split a
+  # code point across a boundary, so a per-chunk iconv is exact and memory stays flat.
+  con_in <- file(path, "rb")
+  con_out <- file(out, "wb")
+  on.exit({ close(con_in); close(con_out) }, add = TRUE)
+  repeat {
+    raw <- readBin(con_in, "raw", n = chunk)
+    if (!length(raw)) break
+    txt <- iconv(rawToChar(raw), from = from, to = "UTF-8", sub = "byte")
+    writeBin(charToRaw(txt), con_out)
+  }
+  out
+}
+
 #' Decide whether to run in-process or isolated based on file size
 #'
 #' @param path Character. File path.
@@ -81,7 +124,13 @@
 #' @param n_rows Integer or NULL. Maximum number of rows to read. Default NULL
 #'   reads all rows.
 #' @param columns Character vector or NULL. Column names to select. Default NULL
-#'   reads all columns.
+#'   reads all columns. For CSV, the projection is pushed down to the Polars scan,
+#'   so only these columns are read from disk (key for wide files).
+#' @param delim Character or NULL. CSV field delimiter (e.g. "|", ";", "\\t").
+#'   Default NULL uses "," (or "\\t" for a `.tsv` file).
+#' @param encoding Character. Source file encoding. Default "utf8". Any other value
+#'   (e.g. "latin1"/"ISO-8859-1") triggers a streaming transcode to a temporary
+#'   UTF-8 copy before reading, preserving accents and "ñ".
 #' @param name Character. Name to register the data under in the QUASAR context.
 #'   Default "data".
 #' @param register Logical. Whether to auto-register in context via
@@ -123,6 +172,8 @@ qsr_read <- function(path,
                      format = "auto",
                      n_rows = NULL,
                      columns = NULL,
+                     delim = NULL,
+                     encoding = "utf8",
                      name = "data",
                      register = TRUE) {
   if (!file.exists(path)) {
@@ -133,8 +184,8 @@ qsr_read <- function(path,
   }
 
   # Detect format from extension
+  ext <- tolower(tools::file_ext(path))
   if (format == "auto") {
-    ext <- tolower(tools::file_ext(path))
     format <- switch(ext,
       csv = , tsv = , txt = "csv",
       parquet = , pq = "parquet",
@@ -145,10 +196,21 @@ qsr_read <- function(path,
     )
   }
 
+  # Resolve delimiter: explicit `delim` wins; else tab for .tsv, comma otherwise.
+  separator <- if (!is.null(delim)) delim else if (identical(ext, "tsv")) "\t" else ","
+
+  # Encoding: Polars assumes UTF-8. For other encodings (e.g. latin1) transcode to a
+  # temporary UTF-8 copy in a streaming pass, so accents/ñ survive and memory stays flat.
+  read_path <- path
+  if (format == "csv" && !tolower(encoding) %in% c("utf8", "utf-8", "")) {
+    read_path <- .qsr_transcode_utf8(path, from = encoding, n_lines = n_rows)
+    on.exit(unlink(read_path), add = TRUE)
+  }
 
   # Call Rust backend - adaptive: subprocess for large files, direct for small
   result <- switch(format,
-    csv = .qsr_adaptive_call(path, "rust_read_csv", list(path, n_rows)),
+    csv = .qsr_adaptive_call(read_path, "rust_read_csv",
+                             list(read_path, n_rows, separator, columns)),
     parquet = .qsr_adaptive_call(path, "rust_read_parquet", list(path)),
     cli::cli_abort("Unsupported format: {.val {format}}")
   )
@@ -161,8 +223,8 @@ qsr_read <- function(path,
   data_cols <- setdiff(names(result), c("_elapsed_secs", "_nrows"))
   df <- as.data.frame(result[data_cols], stringsAsFactors = FALSE)
 
-  # Column projection: return the requested subset. Applied after the read;
-  # Polars-level projection pushdown is not yet wired for the CSV reader.
+  # Column projection is pushed down to the Polars scan (see rust_read_csv). This
+  # R-side subset only re-orders/guards the result to the requested columns.
   if (!is.null(columns)) {
     keep <- intersect(columns, names(df))
     if (length(keep)) df <- df[, keep, drop = FALSE]
@@ -179,6 +241,70 @@ qsr_read <- function(path,
   }
 
   invisible(df)
+}
+
+
+#' Stream a large delimited file to Parquet (constant memory)
+#'
+#' Converts a big CSV/text file to Parquet using the Polars streaming engine,
+#' without ever holding the whole dataset in memory. This is the recommended
+#' entry point for files that are too large for `qsr_read()`: convert once to
+#' Parquet (columnar, compressed, typed), then read/query the Parquet at speed.
+#'
+#' @param path Character. Source delimited file.
+#' @param out Character. Destination Parquet path.
+#' @param delim Character or NULL. Field delimiter (e.g. "|"). Default NULL uses
+#'   "," (or "\\t" for a `.tsv` file).
+#' @param columns Character vector or NULL. Columns to keep; pushed down to the
+#'   scan so only these are read and written.
+#' @param encoding Character. Source encoding. Default "utf8"; other values
+#'   (e.g. "latin1") transcode to a temporary UTF-8 copy first.
+#'
+#' @return The output path (invisibly).
+#'
+#' @details
+#' Memory stays bounded regardless of input size, so 10s of GB convert on a
+#' laptop. When `encoding` needs transcoding the file is passed once through a
+#' streaming UTF-8 conversion before the sink (two disk passes, still flat memory).
+#'
+#' @examples
+#' \dontrun{
+#' # 13 GB pipe-separated, latin1 -> keep 6 columns -> Parquet
+#' qsr_sink_parquet(
+#'   "EXTR_PB.csv", "bronze/extr_pb.parquet",
+#'   delim = "|", encoding = "latin1",
+#'   columns = c("TELEFONO", "PROVINCIA_NOR", "SEGMENTO_TELCO")
+#' )
+#' qsr_read("bronze/extr_pb.parquet")  # fast columnar read afterwards
+#' }
+#'
+#' @export
+qsr_sink_parquet <- function(path, out, delim = NULL, columns = NULL,
+                             encoding = "utf8") {
+  if (!file.exists(path)) {
+    cli::cli_abort("File not found: {.file {path}}")
+  }
+  ext <- tolower(tools::file_ext(path))
+  separator <- if (!is.null(delim)) delim else if (identical(ext, "tsv")) "\t" else ","
+
+  read_path <- path
+  if (!tolower(encoding) %in% c("utf8", "utf-8", "")) {
+    read_path <- .qsr_transcode_utf8(path, from = encoding)  # full file: flat memory
+    on.exit(unlink(read_path), add = TRUE)
+  }
+
+  cols <- if (is.null(columns)) NULL else as.character(columns)
+  out_dir <- dirname(out)
+  if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+
+  elapsed <- .qsr_adaptive_call(
+    read_path, "rust_sink_parquet", list(read_path, out, separator, cols)
+  )
+
+  cli::cli_alert_success(
+    "Streamed to {.file {basename(out)}} in {.val {elapsed}}s {.emph (streaming Polars/Rust)}"
+  )
+  invisible(out)
 }
 
 
@@ -410,7 +536,7 @@ qsr_benchmark <- function(path, n_runs = 3L) {
   rust_times <- numeric(n_runs)
   for (i in seq_len(n_runs)) {
     t0 <- proc.time()["elapsed"]
-    result <- .qsr_adaptive_call(path, "rust_read_csv", list(path, NULL))
+    result <- .qsr_adaptive_call(path, "rust_read_csv", list(path, NULL, ",", NULL))
     rust_times[i] <- proc.time()["elapsed"] - t0
   }
 

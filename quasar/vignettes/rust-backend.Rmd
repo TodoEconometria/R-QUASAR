@@ -58,6 +58,43 @@ Read the first rows, keeping only the columns you ask for:
 qsr_read(csv, columns = c("carrier", "dep_delay", "distance"), n_rows = 5)
 ```
 
+## Real-world files: delimiters and encodings
+
+Production microdata is rarely a tidy UTF-8 comma file. `qsr_read()` takes a
+`delim` (any separator) and an `encoding` (non-UTF-8 sources are transcoded on the
+fly, so accents survive). For CSV, `columns` is a genuine projection pushdown —
+only those columns are read from the scan.
+
+```{r heterogeneous, eval = FALSE}
+# Pipe-separated, latin1-encoded, 71 columns -> read only the 6 you need
+qsr_read(
+  "padron.csv",
+  delim = "|", encoding = "latin1",
+  columns = c("TELEFONO", "PROVINCIA_NOR", "SEGMENTO_TELCO"),
+  n_rows = 5000
+)
+```
+
+## Files larger than memory: stream to Parquet
+
+When the input is too big to read at all, convert it once to Parquet with the
+streaming engine — bounded memory regardless of size — then work on the columnar
+Parquet, which is compressed, typed, and fast to query.
+
+```{r sink, eval = FALSE}
+# Tens of GB -> a projected, UTF-8, columnar staging file, in flat memory
+qsr_sink_parquet(
+  "padron.csv", "bronze/padron.parquet",
+  delim = "|", encoding = "latin1",
+  columns = c("TELEFONO", "PROVINCIA_NOR", "SEGMENTO_TELCO", "TIPO_ACCESO")
+)
+
+qsr_read("bronze/padron.parquet")   # fast columnar read from here on
+```
+
+This is the "poor man's lakehouse" pattern: raw text in, columnar Parquet out, no
+database server — a reproducible bronze layer you can build on a laptop.
+
 ## Where it wins, and where it does not
 
 The backend's real advantage is **peak memory**: because the data never fully
