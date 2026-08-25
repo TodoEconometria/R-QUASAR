@@ -67,6 +67,51 @@ test_that("qsr_read() fails on non-existent file", {
   expect_error(qsr_read("nonexistent_file.csv"), "not found")
 })
 
+test_that("qsr_read() honours a custom delimiter", {
+  tmp <- tempfile(fileext = ".csv")
+  on.exit(unlink(tmp))
+  writeLines(c("a|b|c", "1|2|3", "4|5|6"), tmp)
+
+  df <- qsr_read(tmp, delim = "|", register = FALSE)
+  expect_equal(ncol(df), 3L)
+  expect_equal(names(df), c("a", "b", "c"))
+  expect_equal(nrow(df), 2L)
+})
+
+test_that("qsr_read() transcodes a latin1 file, preserving accents", {
+  tmp <- tempfile(fileext = ".csv")
+  on.exit(unlink(tmp))
+  con <- file(tmp, "w", encoding = "latin1")
+  writeLines(c("prov|n", "A CORUÑA|1", "LEÓN|2"), con)
+  close(con)
+
+  df <- qsr_read(tmp, delim = "|", encoding = "latin1", register = FALSE)
+  expect_true(any(grepl("CORUÑA", df$prov)))   # n-tilde survived
+  expect_false(any(grepl("�", df$prov)))         # no replacement char
+})
+
+test_that("qsr_read() projection returns only requested columns", {
+  tmp <- .make_test_csv(200)
+  on.exit(unlink(tmp))
+
+  df <- qsr_read(tmp, columns = c("id", "group"), register = FALSE)
+  expect_equal(sort(names(df)), c("group", "id"))
+})
+
+test_that("qsr_sink_parquet() streams a delimited file to Parquet", {
+  src <- tempfile(fileext = ".csv")
+  out <- tempfile(fileext = ".parquet")
+  on.exit(unlink(c(src, out)))
+  writeLines(c("a|b|c", "1|x|10", "2|y|20", "3|z|30"), src)
+
+  qsr_sink_parquet(src, out, delim = "|", columns = c("a", "c"))
+  expect_true(file.exists(out))
+
+  back <- qsr_read(out, register = FALSE)
+  expect_equal(sort(names(back)), c("a", "c"))
+  expect_equal(nrow(back), 3L)
+})
+
 test_that("qsr_read() fails on unknown extension with auto format", {
   tmp <- tempfile(fileext = ".xyz")
   file.create(tmp)

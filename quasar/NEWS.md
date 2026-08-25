@@ -26,6 +26,15 @@ First public release.
 * AI helpers (`qsr_ai_review()`, `qsr_ai_classify()`, `qsr_ai_flag()`) support a
   **local Ollama backend** via `provider = "ollama"` in addition to Anthropic
   Claude: no API key, and the data never leaves the machine.
+* `qsr_read()` handles real-world delimited files: a `delim` argument for any
+  field separator (e.g. `"|"`, `";"`, tab) and an `encoding` argument that
+  transcodes non-UTF-8 sources (e.g. `"latin1"`) to UTF-8 on the fly, preserving
+  accents. For CSV, `columns` is now a genuine **projection pushdown** to the
+  Polars scan, so wide files read only the columns you ask for.
+* `qsr_sink_parquet()`: stream a very large delimited file straight to Parquet
+  using the Polars streaming engine, in bounded memory. Convert tens of
+  gigabytes to columnar Parquet on a laptop, then read/query it at speed. Honours
+  `delim`, `encoding` and `columns` (projection pushed to the scan).
 
 ## Security
 

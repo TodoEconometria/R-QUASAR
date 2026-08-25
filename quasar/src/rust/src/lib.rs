@@ -33,25 +33,91 @@ fn na_nulls() -> Option<NullValues> {
 /// Read a CSV file using Polars (10-30x faster than read.csv).
 /// @param path Character. Path to the CSV file.
 /// @param n_rows Integer or NULL. Max rows to read.
+/// @param separator Character. Field delimiter (first byte is used, e.g. "|", ",", "\t").
+/// @param columns Character vector or NULL. Columns to read; when given, Polars pushes
+///   the projection down to the scan and only reads those columns from disk.
 /// @export
 #[extendr]
-fn rust_read_csv(path: &str, n_rows: Nullable<i32>) -> List {
+fn rust_read_csv(
+    path: &str,
+    n_rows: Nullable<i32>,
+    separator: &str,
+    columns: Nullable<Vec<String>>,
+) -> List {
     ensure_polars_init();
     let start = Instant::now();
 
-    let mut reader = LazyCsvReader::new(path).with_null_values(na_nulls());
+    let sep = separator.as_bytes().first().copied().unwrap_or(b',');
+    let mut reader = LazyCsvReader::new(path)
+        .with_separator(sep)
+        .with_null_values(na_nulls());
     if let NotNull(n) = n_rows {
         reader = reader.with_n_rows(Some(n as usize));
     }
 
-    let df = reader
+    let mut lazy = reader
         .finish()
-        .unwrap_or_else(|e| panic!("QUASAR: Failed to parse CSV '{}': {}", path, e))
+        .unwrap_or_else(|e| panic!("QUASAR: Failed to parse CSV '{}': {}", path, e));
+
+    // Projection pushdown: Polars reads ONLY these columns from disk. This is the
+    // memory win on wide files -- selecting before collect() prunes the scan.
+    if let NotNull(cols) = columns {
+        if !cols.is_empty() {
+            let exprs: Vec<Expr> = cols.iter().map(|c| col(c.as_str())).collect();
+            lazy = lazy.select(exprs);
+        }
+    }
+
+    let df = lazy
         .collect()
         .unwrap_or_else(|e| panic!("QUASAR: Failed to collect CSV '{}': {}", path, e));
 
     let elapsed = start.elapsed().as_secs_f64();
     df_to_list(&df, elapsed)
+}
+
+/// Stream a delimited text file to Parquet without materialising it in memory.
+///
+/// Uses the Polars streaming engine: rows flow scan -> (projection) -> Parquet
+/// writer in bounded memory, so files far larger than RAM convert with a flat
+/// footprint. This is the primitive behind a "bronze" layer for huge inputs.
+///
+/// @param path Character. Source file (already UTF-8; transcode upstream if needed).
+/// @param out Character. Destination Parquet path.
+/// @param separator Character. Field delimiter (first byte is used).
+/// @param columns Character vector or NULL. Columns to keep (projection pushdown).
+/// @return Character. Elapsed seconds (as a string).
+/// @export
+#[extendr]
+fn rust_sink_parquet(
+    path: &str,
+    out: &str,
+    separator: &str,
+    columns: Nullable<Vec<String>>,
+) -> String {
+    ensure_polars_init();
+    let start = Instant::now();
+
+    let sep = separator.as_bytes().first().copied().unwrap_or(b',');
+    let mut lazy = LazyCsvReader::new(path)
+        .with_separator(sep)
+        .with_null_values(na_nulls())
+        .finish()
+        .unwrap_or_else(|e| panic!("QUASAR: Failed to scan CSV '{}': {}", path, e));
+
+    if let NotNull(cols) = columns {
+        if !cols.is_empty() {
+            let exprs: Vec<Expr> = cols.iter().map(|c| col(c.as_str())).collect();
+            lazy = lazy.select(exprs);
+        }
+    }
+
+    let out_path = std::path::PathBuf::from(out);
+    lazy.with_streaming(true)
+        .sink_parquet(&out_path, ParquetWriteOptions::default(), None)
+        .unwrap_or_else(|e| panic!("QUASAR: Failed to sink Parquet '{}': {}", out, e));
+
+    format!("{:.3}", start.elapsed().as_secs_f64())
 }
 
 /// Read a Parquet file using Polars.
@@ -292,6 +358,7 @@ fn series_to_robj(series: &Column) -> Robj {
 extendr_module! {
     mod rquasar;
     fn rust_read_csv;
+    fn rust_sink_parquet;
     fn rust_read_parquet;
     fn rust_describe;
     fn rust_group_agg;
