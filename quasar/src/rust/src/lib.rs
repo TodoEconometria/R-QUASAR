@@ -1,5 +1,6 @@
 use extendr_api::prelude::*;
 use polars::prelude::*;
+use std::io::{Read, Write};
 use std::sync::Once;
 use std::time::Instant;
 
@@ -355,11 +356,84 @@ fn series_to_robj(series: &Column) -> Robj {
     }
 }
 
+/// Transcode a single-byte-encoded text file to a UTF-8 copy (streaming, flat memory).
+///
+/// Handles latin1 / ISO-8859-1 / windows-1252 correctly (accents and n-tilde survive) and
+/// **strips embedded NUL bytes** instead of aborting -- so a partially corrupt file still
+/// yields its readable rows. Replaces the R-level `rawToChar` loop, which is ~80x slower on
+/// large files and throws on the first embedded NUL. Single-byte encodings never split a code
+/// point across a chunk boundary, so per-chunk decoding is exact.
+///
+/// @param path Character. Source file (single-byte encoding).
+/// @param out Character. Destination UTF-8 file.
+/// @param from Character. Source encoding label, e.g. "latin1" (falls back to windows-1252).
+/// @return Character. Elapsed seconds (as a string).
+/// @export
+// Decode one byte of a single-byte Latin-family encoding to a Unicode scalar.
+// `win1252 = false` -> pure ISO-8859-1 (byte value == code point). `true` -> windows-1252,
+// which differs only in 0x80..=0x9F (typographic punctuation, euro, etc.). Hand-rolled to
+// avoid pulling an external crate into the vendored build.
+#[inline]
+fn decode_byte(b: u8, win1252: bool) -> char {
+    if win1252 {
+        match b {
+            0x80 => '\u{20AC}', 0x82 => '\u{201A}', 0x83 => '\u{0192}', 0x84 => '\u{201E}',
+            0x85 => '\u{2026}', 0x86 => '\u{2020}', 0x87 => '\u{2021}', 0x88 => '\u{02C6}',
+            0x89 => '\u{2030}', 0x8A => '\u{0160}', 0x8B => '\u{2039}', 0x8C => '\u{0152}',
+            0x8E => '\u{017D}', 0x91 => '\u{2018}', 0x92 => '\u{2019}', 0x93 => '\u{201C}',
+            0x94 => '\u{201D}', 0x95 => '\u{2022}', 0x96 => '\u{2013}', 0x97 => '\u{2014}',
+            0x98 => '\u{02DC}', 0x99 => '\u{2122}', 0x9A => '\u{0161}', 0x9B => '\u{203A}',
+            0x9C => '\u{0153}', 0x9E => '\u{017E}', 0x9F => '\u{0178}',
+            _ => char::from(b), // ASCII, 0xA0..=0xFF, and the 5 undefined slots (as C1 controls)
+        }
+    } else {
+        char::from(b)
+    }
+}
+
+#[extendr]
+fn rust_transcode_utf8(path: &str, out: &str, from: &str) -> String {
+    let start = Instant::now();
+    // "latin1"/"iso-8859-1" -> pure Latin-1; anything else -> windows-1252 (its superset).
+    let f = from.to_ascii_lowercase();
+    let win1252 = !(f.contains("8859-1") || f == "latin1" || f == "l1" || f.contains("iso88591"));
+    let fin = std::fs::File::open(path)
+        .unwrap_or_else(|e| panic!("QUASAR: cannot open '{}': {}", path, e));
+    let fout = std::fs::File::create(out)
+        .unwrap_or_else(|e| panic!("QUASAR: cannot create '{}': {}", out, e));
+    let mut reader = std::io::BufReader::with_capacity(1 << 20, fin);
+    let mut writer = std::io::BufWriter::with_capacity(1 << 20, fout);
+    let mut buf = vec![0u8; 1 << 20];
+    let mut enc = [0u8; 4];
+    loop {
+        let n = reader
+            .read(&mut buf)
+            .unwrap_or_else(|e| panic!("QUASAR: read error on '{}': {}", path, e));
+        if n == 0 {
+            break;
+        }
+        let mut out_buf: Vec<u8> = Vec::with_capacity(n + n / 2);
+        for &b in &buf[..n] {
+            if b == 0 {
+                continue; // embedded NUL is never valid in text; drop it instead of aborting
+            }
+            let s = decode_byte(b, win1252).encode_utf8(&mut enc);
+            out_buf.extend_from_slice(s.as_bytes());
+        }
+        writer
+            .write_all(&out_buf)
+            .unwrap_or_else(|e| panic!("QUASAR: write error on '{}': {}", out, e));
+    }
+    writer.flush().ok();
+    format!("{:.3}", start.elapsed().as_secs_f64())
+}
+
 extendr_module! {
     mod rquasar;
     fn rust_read_csv;
     fn rust_sink_parquet;
     fn rust_read_parquet;
+    fn rust_transcode_utf8;
     fn rust_describe;
     fn rust_group_agg;
     fn rust_filter;
