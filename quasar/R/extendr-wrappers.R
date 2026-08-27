@@ -18,6 +18,8 @@ rust_read_csv <- function(path, n_rows, separator, columns) .Call(wrap__rust_rea
 
 rust_sink_parquet <- function(path, out, separator, columns) .Call(wrap__rust_sink_parquet, path, out, separator, columns)
 
+rust_transcode_utf8 <- function(path, out, from) .Call(wrap__rust_transcode_utf8, path, out, from)
+
 #' Read a Parquet file using Polars.
 #' @param path Character. Path to the Parquet file.
 #' @export
