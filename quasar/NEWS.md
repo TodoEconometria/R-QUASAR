@@ -4,7 +4,7 @@
 
 * **`qsr_model()` now accepts `weights`** (a column name or a numeric vector) for weighted regression -- essential for survey microdata (the elevation factor). Unweighted calls are unchanged.
 
-* **`qsr_read()` now reads SPSS (`.sav`, `.zsav`, `.por`), Stata (`.dta`) and SAS (`.sas7bdat`, `.xpt`)
+* **`qsr_read()` now reads SPSS (`.sav`, `.zsav`, `.por`), Stata (`.dta`) and SAS (`.sas7bdat`, `.xpt`), plus Excel (`.xlsx`, `.xls`) and dBase (`.dbf`)
   files** (via haven, already in Suggests), auto-detected from the extension.
   These are the native formats of survey microdata (EPA/ENAHO/EH), so the survey
   workflow no longer needs a separate import step. `columns` and `n_rows` are

@@ -144,6 +144,8 @@
 #' - **SPSS**: `.sav`, `.zsav`, `.por` (via haven; survey microdata)
 #' - **Stata**: `.dta` (via haven)
 #' - **SAS**: `.sas7bdat`, `.xpt` (via haven)
+#' - **Excel**: `.xlsx`, `.xls` (via readxl; use `sheet` to pick a sheet)
+#' - **dBase**: `.dbf` (via foreign; attribute tables, official statistics)
 #'
 #' For fixed-width (positional) survey files, use [qsr_read_fwf()].
 #'
@@ -174,6 +176,7 @@ qsr_read <- function(path,
                      columns = NULL,
                      delim = NULL,
                      encoding = "utf8",
+                     sheet = NULL,
                      name = "data",
                      register = TRUE) {
   if (!file.exists(path)) {
@@ -190,12 +193,20 @@ qsr_read <- function(path,
       csv = , tsv = , txt = "csv",
       parquet = , pq = "parquet",
       sav = , zsav = , por = , dta = , sas7bdat = , xpt = "haven",
+      xlsx = , xls = "excel",
+      dbf = "dbf",
       cli::cli_abort(c(
         "Cannot auto-detect format for extension {.val .{ext}}",
-        "i" = "Supported: {.val csv}, {.val parquet}, and stat packages ({.val .sav}, {.val .dta}, {.val .sas7bdat}, {.val .xpt}, {.val .por})",
+        "i" = "Supported: {.val csv}, {.val parquet}, {.val xlsx}/{.val xls}, {.val dbf}, and stat packages ({.val .sav}, {.val .dta}, {.val .sas7bdat}, {.val .xpt}, {.val .por})",
         "i" = "For fixed-width files use {.fn qsr_read_fwf}"
       ))
     )
+  }
+
+  # Excel (.xlsx/.xls via readxl) and dBase (.dbf via foreign): tabular formats
+  # every analyst meets. Handled here so they auto-detect like the others.
+  if (format %in% c("excel", "dbf")) {
+    return(.qsr_read_tabular(path, format, sheet, n_rows, columns, name, register))
   }
 
   # Survey microdata from statistical packages: SPSS (.sav/.zsav/.por), Stata
@@ -283,6 +294,49 @@ qsr_read <- function(path,
   elapsed <- proc.time()[["elapsed"]] - t0
   cli::cli_alert_success(
     "Read {.val {nrow(df)}} rows x {.val {ncol(df)}} cols from {.file {basename(path)}} in {.val {round(elapsed, 3)}}s {.emph (haven/{kind})}"
+  )
+  if (register) {
+    qsr_data(df, name = name)
+  }
+  invisible(df)
+}
+
+
+# Read Excel (.xlsx/.xls via readxl) or dBase (.dbf via foreign). Isolated so
+# the readxl dependency is only required when actually reading an Excel file.
+.qsr_read_tabular <- function(path, format, sheet, n_rows, columns, name, register) {
+  t0 <- proc.time()[["elapsed"]]
+  if (identical(format, "excel")) {
+    if (!requireNamespace("readxl", quietly = TRUE)) {
+      cli::cli_abort(c(
+        "Reading Excel files needs the {.pkg readxl} package.",
+        "i" = "Install it with {.code install.packages(\"readxl\")}."
+      ))
+    }
+    df <- as.data.frame(
+      readxl::read_excel(
+        path,
+        sheet = if (is.null(sheet)) 1L else sheet,
+        n_max = if (is.null(n_rows)) Inf else n_rows
+      ),
+      stringsAsFactors = FALSE
+    )
+    kind <- "excel"
+  } else {  # dbf
+    if (!requireNamespace("foreign", quietly = TRUE)) {
+      cli::cli_abort("Reading dBase (.dbf) files needs the {.pkg foreign} package.")
+    }
+    df <- foreign::read.dbf(path, as.is = TRUE)
+    if (!is.null(n_rows)) df <- utils::head(df, n_rows)
+    kind <- "dbf"
+  }
+  if (!is.null(columns)) {
+    keep <- intersect(columns, names(df))
+    if (length(keep)) df <- df[, keep, drop = FALSE]
+  }
+  elapsed <- proc.time()[["elapsed"]] - t0
+  cli::cli_alert_success(
+    "Read {.val {nrow(df)}} rows x {.val {ncol(df)}} cols from {.file {basename(path)}} in {.val {round(elapsed, 3)}}s {.emph ({kind})}"
   )
   if (register) {
     qsr_data(df, name = name)

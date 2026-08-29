@@ -353,6 +353,8 @@ qsr_read("EPA2016.sav")          # SPSS (.sav, .zsav, .por)
 qsr_read("enaho.dta")            # Stata (.dta)
 qsr_read("cps.sas7bdat")         # SAS (.sas7bdat, .xpt)
 qsr_read("survey.parquet")       # Parquet
+qsr_read("hogares.xlsx")        # Excel (.xlsx, .xls) -- use sheet = to pick a sheet
+qsr_read("mapa.dbf")             # dBase (.dbf; attribute tables, official stats)
 qsr_read("data.csv")             # CSV / TSV / TXT
 
 # Read only the columns you need (pushed down to the reader):

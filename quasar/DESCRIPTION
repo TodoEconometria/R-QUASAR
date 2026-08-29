@@ -64,6 +64,8 @@ Suggests:
     OECD,
     gtrendsR,
     haven,
+    writexl,
+    foreign,
     arrow,
     rvest,
     tabulapdf,
