@@ -141,6 +141,10 @@
 #' Supported formats:
 #' - **CSV**: `.csv`, `.tsv`, `.txt`
 #' - **Parquet**: `.parquet`, `.pq`
+#' - **SPSS**: `.sav`, `.zsav`, `.por` (via haven; survey microdata)
+#' - **Stata**: `.dta` (via haven)
+#'
+#' For fixed-width (positional) survey files, use [qsr_read_fwf()].
 #'
 #' @examples
 #' \dontrun{
@@ -184,11 +188,20 @@ qsr_read <- function(path,
     format <- switch(ext,
       csv = , tsv = , txt = "csv",
       parquet = , pq = "parquet",
+      sav = , zsav = , por = "spss",
+      dta = "stata",
       cli::cli_abort(c(
         "Cannot auto-detect format for extension {.val .{ext}}",
-        "i" = "Use {.arg format} = {.val csv} or {.val parquet}"
+        "i" = "Use {.arg format} = {.val csv}, {.val parquet}, {.val spss} or {.val stata}",
+        "i" = "For fixed-width files use {.fn qsr_read_fwf}"
       ))
     )
+  }
+
+  # Survey microdata: SPSS (.sav/.por) and Stata (.dta) via haven. These are the
+  # native formats of ENAHO/EH/EPA-style surveys, so qsr_read handles them directly.
+  if (format %in% c("spss", "stata")) {
+    return(.qsr_read_haven(path, format, n_rows, columns, name, register))
   }
 
   # Resolve delimiter: explicit `delim` wins; else tab for .tsv, comma otherwise.
@@ -235,6 +248,135 @@ qsr_read <- function(path,
     qsr_data(df, name = name)
   }
 
+  invisible(df)
+}
+
+
+# Read SPSS/Stata survey microdata via haven. Isolated so the haven dependency
+# is only required when actually reading these formats. Value labels are
+# preserved (haven labelled vectors, which behave numerically downstream).
+.qsr_read_haven <- function(path, format, n_rows, columns, name, register) {
+  if (!requireNamespace("haven", quietly = TRUE)) {
+    cli::cli_abort(c(
+      "Reading {.val {format}} files needs the {.pkg haven} package.",
+      "i" = "Install it with {.code install.packages(\"haven\")}."
+    ))
+  }
+  t0 <- proc.time()[["elapsed"]]
+  reader <- if (identical(format, "stata")) haven::read_dta else haven::read_sav
+  args <- list(path)
+  if (!is.null(columns)) args$col_select <- columns
+  if (!is.null(n_rows)) args$n_max <- n_rows
+  df <- as.data.frame(do.call(reader, args), stringsAsFactors = FALSE)
+  elapsed <- proc.time()[["elapsed"]] - t0
+  cli::cli_alert_success(
+    "Read {.val {nrow(df)}} rows x {.val {ncol(df)}} cols from {.file {basename(path)}} in {.val {round(elapsed, 3)}}s {.emph (haven/{format})}"
+  )
+  if (register) {
+    qsr_data(df, name = name)
+  }
+  invisible(df)
+}
+
+
+#' Read a fixed-width (positional) file
+#'
+#' Reads fixed-width microdata — the native format of classic survey files
+#' (EPF/EPA/ENAHO record layouts, INE "diseño de registro"), where each variable
+#' occupies a fixed byte range. Fields are given either by `positions`
+#' (start-end pairs, matching a record layout) or by `widths`. Encoding is
+#' handled explicitly (survey files are often `latin1` or `cp850`).
+#'
+#' @param path Character. Path to the fixed-width text file.
+#' @param positions List of length-2 numeric vectors `c(start, end)` (1-based,
+#'   inclusive), or a two-column matrix/data.frame of start/end. One per field.
+#' @param widths Integer vector of field widths (alternative to `positions`;
+#'   fields are taken consecutively from column 1).
+#' @param col_names Character vector of column names (one per field). Defaults to
+#'   `V1, V2, ...`.
+#' @param encoding Character. Source encoding for reading the lines. Default
+#'   "latin1"; use "cp850" for old DOS survey layouts, "utf8" if already UTF-8.
+#' @param n_rows Integer or NULL. Read at most this many rows (NULL = all).
+#' @param trim Logical. Trim leading/trailing whitespace from each field. Default TRUE.
+#' @param name Character. Name to register the data under in the context.
+#' @param register Logical. Register the result in the context. Default TRUE.
+#'
+#' @return A data.frame (invisibly). All columns are character; cast as needed.
+#'
+#' @examples
+#' \dontrun{
+#' # EPF record layout: household id (1-5), province (7-8), status (15-16)
+#' qsr_read_fwf(
+#'   "TIPREG3.TXT",
+#'   positions = list(c(1, 5), c(7, 8), c(15, 16)),
+#'   col_names = c("hogar", "provincia", "situacion"),
+#'   encoding = "cp850"
+#' )
+#' }
+#'
+#' @export
+qsr_read_fwf <- function(path,
+                         positions = NULL,
+                         widths = NULL,
+                         col_names = NULL,
+                         encoding = "latin1",
+                         n_rows = NULL,
+                         trim = TRUE,
+                         name = "data",
+                         register = TRUE) {
+  if (!file.exists(path)) {
+    cli::cli_abort(c(
+      "File not found: {.file {path}}",
+      "i" = "Check the file path and try again."
+    ))
+  }
+  if (is.null(positions) && is.null(widths)) {
+    cli::cli_abort(c(
+      "Provide either {.arg positions} (start-end pairs) or {.arg widths}.",
+      "i" = "e.g. {.code positions = list(c(1, 5), c(7, 8))}"
+    ))
+  }
+
+  # Resolve field start/end (1-based, inclusive) from positions or widths.
+  if (!is.null(positions)) {
+    if (is.matrix(positions) || is.data.frame(positions)) {
+      pm <- as.matrix(positions)
+      starts <- as.integer(pm[, 1]); ends <- as.integer(pm[, 2])
+    } else {
+      starts <- vapply(positions, function(p) as.integer(p[1]), integer(1))
+      ends <- vapply(positions, function(p) as.integer(p[2]), integer(1))
+    }
+  } else {
+    widths <- as.integer(widths)
+    ends <- cumsum(widths)
+    starts <- ends - widths + 1L
+  }
+  n_fields <- length(starts)
+  if (is.null(col_names)) col_names <- paste0("V", seq_len(n_fields))
+  if (length(col_names) != n_fields) {
+    cli::cli_abort("{.arg col_names} has {length(col_names)} names but there are {n_fields} fields.")
+  }
+
+  t0 <- proc.time()[["elapsed"]]
+  con <- file(path, "r", encoding = encoding)
+  on.exit(close(con), add = TRUE)
+  lines <- readLines(con, n = if (is.null(n_rows)) -1L else n_rows, warn = FALSE)
+
+  cols <- lapply(seq_len(n_fields), function(i) {
+    v <- substr(lines, starts[i], ends[i])
+    if (trim) v <- trimws(v)
+    v
+  })
+  names(cols) <- col_names
+  df <- as.data.frame(cols, stringsAsFactors = FALSE)
+  elapsed <- proc.time()[["elapsed"]] - t0
+
+  cli::cli_alert_success(
+    "Read {.val {nrow(df)}} rows x {.val {n_fields}} cols from {.file {basename(path)}} in {.val {round(elapsed, 3)}}s {.emph (fixed-width)}"
+  )
+  if (register) {
+    qsr_data(df, name = name)
+  }
   invisible(df)
 }
 
