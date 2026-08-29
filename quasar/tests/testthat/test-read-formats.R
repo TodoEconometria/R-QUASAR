@@ -89,3 +89,15 @@ test_that("qsr_read() auto-detects and reads Stata .dta", {
   d <- qsr_read(tf, register = FALSE)
   expect_equal(nrow(d), 3)
 })
+
+test_that("qsr_read() auto-detects and reads SAS transport .xpt", {
+  skip_if_not_installed("haven")
+  tf <- tempfile(fileext = ".xpt")
+  # SAS xpt names are limited to 8 chars; use a short one.
+  haven::write_xpt(data.frame(x = 1:3), tf)
+  on.exit(unlink(tf))
+
+  d <- qsr_read(tf, register = FALSE)
+  expect_equal(nrow(d), 3)
+  expect_equal(as.numeric(d$x), c(1, 2, 3))
+})
