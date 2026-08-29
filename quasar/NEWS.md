@@ -2,7 +2,7 @@
 
 ## New features
 
-* **`qsr_read()` now reads SPSS (`.sav`, `.zsav`, `.por`) and Stata (`.dta`)
+* **`qsr_read()` now reads SPSS (`.sav`, `.zsav`, `.por`), Stata (`.dta`) and SAS (`.sas7bdat`, `.xpt`)
   files** (via haven, already in Suggests), auto-detected from the extension.
   These are the native formats of survey microdata (EPA/ENAHO/EH), so the survey
   workflow no longer needs a separate import step. `columns` and `n_rows` are

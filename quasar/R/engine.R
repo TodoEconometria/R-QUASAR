@@ -143,6 +143,7 @@
 #' - **Parquet**: `.parquet`, `.pq`
 #' - **SPSS**: `.sav`, `.zsav`, `.por` (via haven; survey microdata)
 #' - **Stata**: `.dta` (via haven)
+#' - **SAS**: `.sas7bdat`, `.xpt` (via haven)
 #'
 #' For fixed-width (positional) survey files, use [qsr_read_fwf()].
 #'
@@ -188,20 +189,20 @@ qsr_read <- function(path,
     format <- switch(ext,
       csv = , tsv = , txt = "csv",
       parquet = , pq = "parquet",
-      sav = , zsav = , por = "spss",
-      dta = "stata",
+      sav = , zsav = , por = , dta = , sas7bdat = , xpt = "haven",
       cli::cli_abort(c(
         "Cannot auto-detect format for extension {.val .{ext}}",
-        "i" = "Use {.arg format} = {.val csv}, {.val parquet}, {.val spss} or {.val stata}",
+        "i" = "Supported: {.val csv}, {.val parquet}, and stat packages ({.val .sav}, {.val .dta}, {.val .sas7bdat}, {.val .xpt}, {.val .por})",
         "i" = "For fixed-width files use {.fn qsr_read_fwf}"
       ))
     )
   }
 
-  # Survey microdata: SPSS (.sav/.por) and Stata (.dta) via haven. These are the
-  # native formats of ENAHO/EH/EPA-style surveys, so qsr_read handles them directly.
-  if (format %in% c("spss", "stata")) {
-    return(.qsr_read_haven(path, format, n_rows, columns, name, register))
+  # Survey microdata from statistical packages: SPSS (.sav/.zsav/.por), Stata
+  # (.dta) and SAS (.sas7bdat/.xpt) via haven. These are the native formats of
+  # ENAHO/EH/EPA-style surveys, so qsr_read handles them directly.
+  if (format %in% c("haven", "spss", "stata", "sas")) {
+    return(.qsr_read_haven(path, n_rows, columns, name, register))
   }
 
   # Resolve delimiter: explicit `delim` wins; else tab for .tsv, comma otherwise.
@@ -252,25 +253,36 @@ qsr_read <- function(path,
 }
 
 
-# Read SPSS/Stata survey microdata via haven. Isolated so the haven dependency
-# is only required when actually reading these formats. Value labels are
-# preserved (haven labelled vectors, which behave numerically downstream).
-.qsr_read_haven <- function(path, format, n_rows, columns, name, register) {
+# Read statistical-package survey microdata (SPSS/Stata/SAS) via haven. Isolated
+# so the haven dependency is only required when actually reading these formats.
+# The reader is chosen from the file extension. Value labels are preserved
+# (haven labelled vectors, which behave numerically downstream).
+.qsr_read_haven <- function(path, n_rows, columns, name, register) {
   if (!requireNamespace("haven", quietly = TRUE)) {
     cli::cli_abort(c(
-      "Reading {.val {format}} files needs the {.pkg haven} package.",
+      "Reading statistical-package files needs the {.pkg haven} package.",
       "i" = "Install it with {.code install.packages(\"haven\")}."
     ))
   }
+  ext <- tolower(tools::file_ext(path))
+  reader <- switch(ext,
+    sav = , zsav = haven::read_sav,
+    por = haven::read_por,
+    dta = haven::read_dta,
+    sas7bdat = haven::read_sas,
+    xpt = haven::read_xpt,
+    cli::cli_abort("Unsupported statistical-package extension {.val .{ext}}.")
+  )
+  kind <- switch(ext, sav = , zsav = , por = "spss", dta = "stata",
+                 sas7bdat = , xpt = "sas", ext)
   t0 <- proc.time()[["elapsed"]]
-  reader <- if (identical(format, "stata")) haven::read_dta else haven::read_sav
   args <- list(path)
   if (!is.null(columns)) args$col_select <- columns
   if (!is.null(n_rows)) args$n_max <- n_rows
   df <- as.data.frame(do.call(reader, args), stringsAsFactors = FALSE)
   elapsed <- proc.time()[["elapsed"]] - t0
   cli::cli_alert_success(
-    "Read {.val {nrow(df)}} rows x {.val {ncol(df)}} cols from {.file {basename(path)}} in {.val {round(elapsed, 3)}}s {.emph (haven/{format})}"
+    "Read {.val {nrow(df)}} rows x {.val {ncol(df)}} cols from {.file {basename(path)}} in {.val {round(elapsed, 3)}}s {.emph (haven/{kind})}"
   )
   if (register) {
     qsr_data(df, name = name)
