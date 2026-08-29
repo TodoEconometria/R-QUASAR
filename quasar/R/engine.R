@@ -520,6 +520,21 @@ qsr_fast_group <- function(path,
 
   fn <- match.arg(fn, c("mean", "sum", "count", "min", "max", "std"))
 
+  # The Rust group engine scans CSV. For Parquet, read it (columnar) and
+  # aggregate in R so `.parquet` inputs work instead of failing.
+  ext <- tolower(tools::file_ext(path))
+  if (ext %in% c("parquet", "pq")) {
+    t0 <- proc.time()[["elapsed"]]
+    df <- .qsr_group_parquet(path, by, col, fn)
+    cli::cli_alert_success(
+      "Grouped {.val {col}} by {.val {by}} ({fn}) in {.val {round(proc.time()[['elapsed']] - t0, 3)}}s {.emph (Parquet, in-memory)}"
+    )
+    if (register) {
+      qsr_data(df, name = name)
+    }
+    return(invisible(df))
+  }
+
   result <- .qsr_adaptive_call(path, "rust_group_agg", list(path, by, col, fn))
   elapsed <- result[["_elapsed_secs"]]
   data_cols <- setdiff(names(result), c("_elapsed_secs", "_nrows"))
@@ -534,6 +549,43 @@ qsr_fast_group <- function(path,
   }
 
   invisible(df)
+}
+
+
+# Group-aggregate a Parquet file in R (the Rust engine only scans CSV). Reads
+# the columnar file via the Parquet reader, then aggregates with base R.
+# Output shape matches the CSV path: `by` columns + a `<col>_<fn>` column.
+.qsr_group_parquet <- function(path, by, col, fn) {
+  res <- .qsr_adaptive_call(path, "rust_read_parquet", list(path))
+  data_cols <- setdiff(names(res), c("_elapsed_secs", "_nrows"))
+  df <- as.data.frame(res[data_cols], stringsAsFactors = FALSE)
+
+  miss <- setdiff(c(by, if (fn != "count") col), names(df))
+  if (length(miss)) {
+    cli::cli_abort("Column(s) not found in Parquet: {.val {miss}}")
+  }
+
+  groups <- lapply(by, function(b) df[[b]])
+  names(groups) <- by
+  out_col <- paste0(col, "_", fn)
+
+  if (fn == "count") {
+    agg <- stats::aggregate(
+      list(.x = rep(1L, nrow(df))), by = groups, FUN = length
+    )
+  } else {
+    x <- suppressWarnings(as.numeric(df[[col]]))
+    ffun <- switch(fn,
+      mean = function(v) mean(v, na.rm = TRUE),
+      sum  = function(v) sum(v, na.rm = TRUE),
+      min  = function(v) min(v, na.rm = TRUE),
+      max  = function(v) max(v, na.rm = TRUE),
+      std  = function(v) stats::sd(v, na.rm = TRUE)
+    )
+    agg <- stats::aggregate(list(.x = x), by = groups, FUN = ffun)
+  }
+  names(agg)[names(agg) == ".x"] <- out_col
+  agg
 }
 
 

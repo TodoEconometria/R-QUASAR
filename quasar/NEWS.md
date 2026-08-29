@@ -11,6 +11,17 @@
   classic survey record layouts (INE "diseño de registro"). Fields are given by
   `positions` (start-end pairs) or `widths`, with explicit `encoding`
   (`latin1`/`cp850`/`utf8`) for old survey files.
+* **New `qsr_tabulate()`** — weighted survey tabulation. Computes weighted
+  counts, proportions, means or sums by group, applying the survey weight
+  (auto-detected from common names: `factor`, `factorel`, `weight`, `fexp`, …).
+  This turns raw survey microdata into population estimates (tasa de paro,
+  millones de personas, participación por grupo) in one call.
+
+## Bug fixes
+
+* `qsr_fast_group()` now accepts **Parquet** inputs (previously it scanned any
+  file as CSV and failed on `.parquet`). Parquet files are read columnar and
+  aggregated in memory; CSV keeps the streaming Rust path.
 
 
 # rquasar 0.1.0

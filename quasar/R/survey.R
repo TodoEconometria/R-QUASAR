@@ -502,6 +502,129 @@ qsr_decision_log <- function(id,
 }
 
 
+#' Weighted survey tabulation
+#'
+#' The core estimation primitive for survey microdata: weighted counts,
+#' proportions, means or sums by group, applying the survey weight (factor de
+#' elevación). Without weights, sample tallies are not population estimates;
+#' `qsr_tabulate()` applies the weight so results are population figures — the
+#' step that turns EPA/ENAHO/EH microdata into headline numbers (tasa de paro,
+#' millones de personas, participación por grupo).
+#'
+#' @param data A data.frame, or NULL to use the registered context data.
+#' @param by Character vector of grouping variables. NULL tabulates the whole
+#'   sample.
+#' @param weight Character. Weight column. NULL auto-detects common survey weight
+#'   names (`weight`, `factor`, `fexp`, `factorel`, `factorelanual`,
+#'   `factor_expansion`, `pondera`, `peso`), case-insensitive.
+#' @param measure Character or NULL. Numeric variable required for
+#'   `stat = "mean"` or `"sum"`.
+#' @param stat One of `"count"` (weighted N), `"prop"` (share of the weighted
+#'   total), `"mean"` or `"sum"` (of `measure`).
+#' @param digits Integer or NULL. Round the estimate.
+#' @param na_rm Logical. Drop non-finite weight/measure values. Default TRUE.
+#'
+#' @return A data.frame with the `by` columns, `n` (unweighted row count per
+#'   group) and `estimate` (the weighted statistic), invisibly printed as a tidy
+#'   table.
+#'
+#' @examples
+#' \dontrun{
+#' qsr_read("EPA2016.sav")
+#' # Weighted distribution of activity status:
+#' qsr_tabulate(by = "AOI", weight = "FACTOREL", stat = "prop")
+#' # Weighted population by sex (millions): stat = "count"
+#' qsr_tabulate(by = "SEXO1", weight = "FACTOREL", stat = "count")
+#' }
+#'
+#' @export
+qsr_tabulate <- function(data = NULL,
+                         by = NULL,
+                         weight = NULL,
+                         measure = NULL,
+                         stat = c("count", "prop", "mean", "sum"),
+                         digits = NULL,
+                         na_rm = TRUE) {
+  stat <- match.arg(stat)
+
+  if (is.null(data)) {
+    data <- .qsr_context$get_data()
+    if (is.null(data)) {
+      cli::cli_abort(c(
+        "No data.",
+        "i" = "Pass {.arg data} or register data first with {.fn qsr_data}."
+      ))
+    }
+  }
+  df <- as.data.frame(data)
+
+  # Auto-detect the survey weight column if not given.
+  if (is.null(weight)) {
+    cands <- c("weight", "factor", "fexp", "factorel", "factorelanual",
+               "factor_expansion", "factor_elevacion", "pondera", "peso")
+    hit <- names(df)[tolower(names(df)) %in% cands]
+    weight <- if (length(hit)) hit[[1]] else NULL
+    if (!is.null(weight)) {
+      cli::cli_alert_info("Using weight column {.field {weight}}.")
+    } else {
+      cli::cli_alert_warning(
+        "No weight column detected; returning unweighted sample tallies."
+      )
+    }
+  }
+  if (!is.null(weight) && !weight %in% names(df)) {
+    cli::cli_abort("Weight column {.val {weight}} not found.")
+  }
+  if (!is.null(by)) {
+    miss <- setdiff(by, names(df))
+    if (length(miss)) cli::cli_abort("Grouping column(s) not found: {.val {miss}}")
+  }
+  if (stat %in% c("mean", "sum")) {
+    if (is.null(measure)) {
+      cli::cli_abort("{.arg measure} is required for stat = {.val {stat}}.")
+    }
+    if (!measure %in% names(df)) {
+      cli::cli_abort("Measure column {.val {measure}} not found.")
+    }
+  }
+
+  w <- if (is.null(weight)) rep(1, nrow(df)) else suppressWarnings(as.numeric(df[[weight]]))
+  m <- if (!is.null(measure)) suppressWarnings(as.numeric(df[[measure]])) else rep(0, nrow(df))
+
+  ok <- is.finite(w)
+  if (!is.null(measure) && stat %in% c("mean", "sum")) ok <- ok & is.finite(m)
+  if (!na_rm) ok <- rep(TRUE, nrow(df))
+
+  parts <- data.frame(.w = w, .wm = w * m, .n = 1L)[ok, , drop = FALSE]
+  grp <- if (is.null(by)) {
+    list(grupo = rep("Total", sum(ok)))
+  } else {
+    lapply(df[by], function(col) col[ok])
+  }
+  res <- stats::aggregate(parts, by = grp, FUN = sum, na.rm = TRUE)
+
+  total_w <- sum(res$.w)
+  res$estimate <- switch(stat,
+    count = res$.w,
+    prop  = res$.w / total_w,
+    sum   = res$.wm,
+    mean  = res$.wm / res$.w
+  )
+  if (!is.null(digits)) res$estimate <- round(res$estimate, digits)
+
+  keep <- c(if (is.null(by)) "grupo" else by, ".n", "estimate")
+  out <- res[, keep, drop = FALSE]
+  names(out)[names(out) == ".n"] <- "n"
+  out <- out[order(-out$estimate), , drop = FALSE]
+  rownames(out) <- NULL
+
+  cli::cli_alert_success(
+    "Weighted {stat} over {.val {sum(ok)}} rows{if (is.null(weight)) ' (unweighted)' else ''}."
+  )
+  out
+}
+
+
 # ============================================================
 # Internal helpers
 # ============================================================
