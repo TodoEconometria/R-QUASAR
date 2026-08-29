@@ -1,3 +1,18 @@
+# rquasar (development version)
+
+## New features
+
+* **`qsr_read()` now reads SPSS (`.sav`, `.zsav`, `.por`) and Stata (`.dta`)
+  files** (via haven, already in Suggests), auto-detected from the extension.
+  These are the native formats of survey microdata (EPA/ENAHO/EH), so the survey
+  workflow no longer needs a separate import step. `columns` and `n_rows` are
+  pushed to haven's `col_select` / `n_max`.
+* **New `qsr_read_fwf()`** reads fixed-width (positional) files — the format of
+  classic survey record layouts (INE "diseño de registro"). Fields are given by
+  `positions` (start-end pairs) or `widths`, with explicit `encoding`
+  (`latin1`/`cp850`/`utf8`) for old survey files.
+
+
 # rquasar 0.1.0
 
 First public release.
