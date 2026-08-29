@@ -67,7 +67,7 @@ test_that("qsr_read() auto-detects and reads SPSS .sav", {
   d <- qsr_read(tf, register = FALSE)
   expect_s3_class(d, "data.frame")
   expect_equal(nrow(d), 3)
-  expect_equal(d$x, 1:3)
+  expect_equal(as.numeric(d$x), c(1, 2, 3))  # haven adds format attrs; compare values
 })
 
 test_that("qsr_read() reads a column subset from .sav", {
