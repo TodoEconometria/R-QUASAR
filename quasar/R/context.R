@@ -303,6 +303,9 @@ qsr_data <- function(data, name = NULL) {
 #'   from context.
 #' @param name Character. Name to store the model under. Default `"last"`.
 #' @param family For GLM models. Ignored for `"lm"`.
+#' @param weights Optional survey/regression weights: either the name of a
+#'   column in `data` or a numeric vector of length `nrow(data)`. Essential for
+#'   survey microdata, where estimates must use the elevation factor.
 #' @param ... Additional arguments passed to the fitting function.
 #'
 #' @return The fitted model object (also stored in context).
@@ -314,12 +317,17 @@ qsr_data <- function(data, name = NULL) {
 #' qsr_model(mpg ~ wt + hp)
 #' qsr_model(mpg ~ wt + hp + disp, name = "full")
 #' qsr_model(am ~ wt + hp, type = "logit")
+#'
+#' # Weighted regression on survey microdata:
+#' qsr_read("EPA2016.sav")
+#' qsr_model(parado ~ sexo + edad + educacion, weights = "FACTOREL")
 #' }
 qsr_model <- function(formula,
                       type   = c("lm", "glm", "logit", "probit"),
                       data   = NULL,
                       name   = "last",
                       family = NULL,
+                      weights = NULL,
                       ...) {
 
   type <- match.arg(type)
@@ -333,13 +341,41 @@ qsr_model <- function(formula,
     ))
   }
 
-  # Fit model
-  model <- switch(type,
-    lm     = stats::lm(formula, data = data, ...),
-    glm    = stats::glm(formula, data = data, family = family %||% stats::gaussian(), ...),
-    logit  = stats::glm(formula, data = data, family = stats::binomial(link = "logit"), ...),
-    probit = stats::glm(formula, data = data, family = stats::binomial(link = "probit"), ...)
-  )
+  # Resolve weights to a local numeric vector (a column name or a vector), so
+  # lm/glm evaluate them correctly from this frame (survey weights need this).
+  w <- NULL
+  if (!is.null(weights)) {
+    if (is.character(weights) && length(weights) == 1L) {
+      if (!weights %in% names(data)) {
+        cli::cli_abort("Weight column {.val {weights}} not found in data.")
+      }
+      w <- as.numeric(data[[weights]])
+    } else if (is.numeric(weights) && length(weights) == nrow(data)) {
+      w <- as.numeric(weights)
+    } else {
+      cli::cli_abort(
+        "{.arg weights} must be a column name in {.arg data} or a numeric vector of length {nrow(data)}."
+      )
+    }
+  }
+
+  # Fit model (branch on whether weights were supplied so unweighted calls are
+  # unchanged).
+  model <- if (is.null(w)) {
+    switch(type,
+      lm     = stats::lm(formula, data = data, ...),
+      glm    = stats::glm(formula, data = data, family = family %||% stats::gaussian(), ...),
+      logit  = stats::glm(formula, data = data, family = stats::binomial(link = "logit"), ...),
+      probit = stats::glm(formula, data = data, family = stats::binomial(link = "probit"), ...)
+    )
+  } else {
+    switch(type,
+      lm     = stats::lm(formula, data = data, weights = w, ...),
+      glm    = stats::glm(formula, data = data, family = family %||% stats::gaussian(), weights = w, ...),
+      logit  = stats::glm(formula, data = data, family = stats::binomial(link = "logit"), weights = w, ...),
+      probit = stats::glm(formula, data = data, family = stats::binomial(link = "probit"), weights = w, ...)
+    )
+  }
 
   # Store in context
   .qsr_context$set_model(model, name)

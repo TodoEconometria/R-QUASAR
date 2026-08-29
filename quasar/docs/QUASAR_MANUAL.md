@@ -337,22 +337,103 @@ across multiple Latin American household surveys.
 
 ---
 
+## 9. Survey Microdata: Any Format, Weighted
+
+Survey microdata rarely comes as a tidy CSV. QUASAR reads the native formats of
+the major statistical packages and of national statistical offices, and provides
+the two primitives every survey analysis needs: **weighted tabulation** and
+**weighted regression**.
+
+### Reading any format
+
+`qsr_read()` auto-detects the format from the file extension:
+
+```r
+qsr_read("EPA2016.sav")          # SPSS (.sav, .zsav, .por)
+qsr_read("enaho.dta")            # Stata (.dta)
+qsr_read("cps.sas7bdat")         # SAS (.sas7bdat, .xpt)
+qsr_read("survey.parquet")       # Parquet
+qsr_read("data.csv")             # CSV / TSV / TXT
+
+# Read only the columns you need (pushed down to the reader):
+qsr_read("EPA2016.sav", columns = c("AOI", "FACTOREL", "SEXO1", "EDAD5"))
+```
+
+For **fixed-width** files — the classic format of old survey record layouts
+(e.g. an INE *diseño de registro*), where each variable sits in a fixed byte
+range — use `qsr_read_fwf()`, giving the fields by position or width and the
+source encoding:
+
+```r
+# Household members: id (cols 1-5), province (7-8), activity status (15-16)
+qsr_read_fwf(
+  "members.txt",
+  positions = list(c(1, 5), c(7, 8), c(15, 16)),
+  col_names = c("household", "province", "status"),
+  encoding  = "cp850"          # old DOS survey files; also "latin1", "utf8"
+)
+```
+
+### Weighted tabulation
+
+Without the survey weight (the *factor de elevación*), a tally counts the
+**sample**, not the **population**. `qsr_tabulate()` applies the weight — and
+auto-detects it from common names (`factor`, `factorel`, `weight`, `fexp`, …):
+
+```r
+qsr_read("EPA2016.sav")
+
+# Weighted distribution of activity status:
+qsr_tabulate(by = "AOI", weight = "FACTOREL", stat = "prop")
+
+# Population by sex (weighted count):
+qsr_tabulate(by = "SEXO1", weight = "FACTOREL", stat = "count")
+
+# Weighted mean of a variable by group:
+qsr_tabulate(by = "region", weight = "FACTOREL", measure = "income", stat = "mean")
+```
+
+`stat` is one of `"count"` (weighted N), `"prop"` (share of the weighted total),
+`"mean"` or `"sum"` (of `measure`). The result is a tidy data.frame with the
+grouping columns, `n` (unweighted rows) and `estimate`.
+
+### Weighted regression
+
+Survey estimates must use the weight in the model too. Pass `weights` to
+`qsr_model()` — a column name or a numeric vector:
+
+```r
+# Linear-probability model of unemployment risk, weighted by the elevation factor
+qsr_model(parado ~ mujer + edad + educacion + extranjero,
+          type = "lm", weights = "FACTOREL")
+
+# Weighted logit / probit likewise:
+qsr_model(parado ~ edad + educacion, type = "logit", weights = "FACTOREL")
+```
+
+> **End-to-end.** `qsr_read()` a `.sav`, `qsr_tabulate()` the headline rates,
+> and `qsr_model(weights = ...)` the drivers — the whole survey workflow, from
+> the raw statistical-package file to weighted population estimates, without
+> leaving R and without a separate import step.
+
+---
+
 ## Function Reference
 
-37 exported functions organized by layer:
+Exported functions organized by layer:
 
 | Layer | Functions |
 |-------|-----------|
 | Scaffold | `qsr_init` |
-| Context | `qsr_config`, `qsr_data`, `qsr_model`, `qsr_get`, `qsr_reset` |
+| Context | `qsr_config`, `qsr_data`, `qsr_model` (supports `weights`), `qsr_get`, `qsr_reset` |
 | Connectors | `qsr_db`, `qsr_spark`, `qsr_fetch`, `qsr_python`, `qsr_search` |
 | Output | `qsr_table`, `qsr_plot`, `qsr_report` |
-| Rust Engine | `qsr_read`, `qsr_fast_summary`, `qsr_fast_group`, `qsr_fast_filter`, `qsr_fast_sort`, `qsr_benchmark` |
+| Rust Engine | `qsr_read` (CSV/Parquet/SPSS/Stata/SAS), `qsr_read_fwf` (fixed-width), `qsr_fast_summary`, `qsr_fast_group` (CSV & Parquet), `qsr_fast_filter`, `qsr_fast_sort`, `qsr_benchmark` |
 | Analytics | `qsr_clean`, `qsr_test`, `qsr_feature` |
 | ML | `qsr_ml`, `qsr_cv`, `qsr_compare` |
 | Time Series | `qsr_ts` |
 | Research | `qsr_download`, `qsr_panel`, `qsr_scrape`, `qsr_spatial`, `qsr_load_folder`, `qsr_guide` |
-| Survey | `qsr_normalize_text`, `qsr_crosswalk`, `qsr_currency`, `qsr_validate`, `qsr_decision_log` |
+| Survey | `qsr_tabulate` (weighted), `qsr_normalize_text`, `qsr_crosswalk`, `qsr_currency`, `qsr_validate`, `qsr_decision_log` |
 | AI | `qsr_ai_review`, `qsr_ai_classify`, `qsr_ai_flag` |
 | Deploy | `qsr_deploy` |
 
