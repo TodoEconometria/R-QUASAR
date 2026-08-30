@@ -1,0 +1,19 @@
+# Rust build artifacts
+quasar/src/rust/target/
+quasar/src/rust/vendor/
+quasar/src/Makevars
+quasar/src/Makevars.win
+
+# R artifacts
+.Rproj.user
+.Rhistory
+.RData
+.Rproj.user/
+
+# R CMD build/check artifacts (regenerated; never versioned)
+*.Rcheck/
+*.tar.gz
+
+# IDE
+.vscode/
+.claude/

@@ -54,4 +54,5 @@ clean <- qsr_normalize_text(
   review = FALSE
 )
 table(clean$crop_name_clean)
+
 }

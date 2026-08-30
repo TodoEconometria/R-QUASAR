@@ -126,6 +126,9 @@
 #' @param encoding Character. Source file encoding. Default "utf8". Any other value
 #'   (e.g. "latin1"/"ISO-8859-1") triggers a streaming transcode to a temporary
 #'   UTF-8 copy before reading, preserving accents and "ñ".
+#' @param sheet Integer or character or NULL. For Excel (`.xlsx`/`.xls`), the sheet
+#'   to read (position or name). Default NULL reads the first sheet. Ignored for
+#'   other formats.
 #' @param name Character. Name to register the data under in the QUASAR context.
 #'   Default "data".
 #' @param register Logical. Whether to auto-register in context via
@@ -146,6 +149,11 @@
 #' - **SAS**: `.sas7bdat`, `.xpt` (via haven)
 #' - **Excel**: `.xlsx`, `.xls` (via readxl; use `sheet` to pick a sheet)
 #' - **dBase**: `.dbf` (via foreign; attribute tables, official statistics)
+#' - **JSON**: `.json` (array of objects), `.ndjson`/`.jsonl` (one object per
+#'   line) (via jsonlite; nested JSON must be flattened first)
+#' - **Arrow/Feather**: `.arrow`, `.feather`, `.ipc` (via arrow; columnar IPC)
+#' - **Native R**: `.rds` (a saved data.frame) and `.rdata`/`.rda` (a container;
+#'   the first data.frame is loaded) - to resume a session from saved data
 #'
 #' For fixed-width (positional) survey files, use [qsr_read_fwf()].
 #'
@@ -162,6 +170,11 @@
 #'
 #' # Read Parquet (auto-detected from extension)
 #' qsr_read("data/results.parquet")
+#'
+#' # Modern interchange + native R (all auto-detected from extension)
+#' qsr_read("data/events.ndjson")    # JSON Lines (one object per line)
+#' qsr_read("data/panel.arrow")      # Arrow IPC / Feather v2
+#' qsr_read("data/session.rds")      # resume from a saved data.frame
 #'
 #' # After qsr_read(), data is in context - use qsr_table(), qsr_plot() directly
 #' qsr_read("data/survey.csv")
@@ -195,9 +208,13 @@ qsr_read <- function(path,
       sav = , zsav = , por = , dta = , sas7bdat = , xpt = "haven",
       xlsx = , xls = "excel",
       dbf = "dbf",
+      json = , ndjson = , jsonl = "json",
+      arrow = , feather = , ipc = "arrow",
+      rds = "rds",
+      rdata = , rda = "rdata",
       cli::cli_abort(c(
         "Cannot auto-detect format for extension {.val .{ext}}",
-        "i" = "Supported: {.val csv}, {.val parquet}, {.val xlsx}/{.val xls}, {.val dbf}, and stat packages ({.val .sav}, {.val .dta}, {.val .sas7bdat}, {.val .xpt}, {.val .por})",
+        "i" = "Supported: {.val csv}, {.val parquet}, {.val xlsx}/{.val xls}, {.val dbf}, {.val json}/{.val ndjson}, {.val arrow}/{.val feather}, {.val rds}, {.val rdata}, and stat packages ({.val .sav}, {.val .dta}, {.val .sas7bdat}, {.val .xpt}, {.val .por})",
         "i" = "For fixed-width files use {.fn qsr_read_fwf}"
       ))
     )
@@ -214,6 +231,14 @@ qsr_read <- function(path,
   # ENAHO/EH/EPA-style surveys, so qsr_read handles them directly.
   if (format %in% c("haven", "spss", "stata", "sas")) {
     return(.qsr_read_haven(path, n_rows, columns, name, register))
+  }
+
+  # Modern interchange + native R formats: JSON/NDJSON (jsonlite), Arrow/Feather
+  # IPC (arrow) and native RDS/RData. Handled together so their optional deps
+  # only load when one of these formats is actually read. RDS/RData let an
+  # analyst resume a session from a saved data.frame with the same qsr_read call.
+  if (format %in% c("json", "arrow", "rds", "rdata")) {
+    return(.qsr_read_serialized(path, format, n_rows, columns, name, register))
   }
 
   # Resolve delimiter: explicit `delim` wins; else tab for .tsv, comma otherwise.
@@ -334,6 +359,104 @@ qsr_read <- function(path,
     keep <- intersect(columns, names(df))
     if (length(keep)) df <- df[, keep, drop = FALSE]
   }
+  elapsed <- proc.time()[["elapsed"]] - t0
+  cli::cli_alert_success(
+    "Read {.val {nrow(df)}} rows x {.val {ncol(df)}} cols from {.file {basename(path)}} in {.val {round(elapsed, 3)}}s {.emph ({kind})}"
+  )
+  if (register) {
+    qsr_data(df, name = name)
+  }
+  invisible(df)
+}
+
+
+# Read modern interchange (JSON/NDJSON, Arrow/Feather) and native R (RDS/RData)
+# formats into a data.frame. Isolated so jsonlite/arrow only load on demand.
+# Each branch resolves to a data.frame `df`; the generic tail handles the
+# shared column/row projection, the success message and context registration.
+.qsr_read_serialized <- function(path, format, n_rows, columns, name, register) {
+  t0 <- proc.time()[["elapsed"]]
+  ext <- tolower(tools::file_ext(path))
+
+  if (identical(format, "json")) {
+    if (!requireNamespace("jsonlite", quietly = TRUE)) {
+      cli::cli_abort(c(
+        "Reading JSON files needs the {.pkg jsonlite} package.",
+        "i" = "Install it with {.code install.packages(\"jsonlite\")}."
+      ))
+    }
+    # NDJSON / JSON Lines (.ndjson/.jsonl): one JSON record per line. Plain .json:
+    # a single top-level array of objects - the only shape a data.frame can hold.
+    if (ext %in% c("ndjson", "jsonl")) {
+      con <- file(path)
+      df <- jsonlite::stream_in(con, verbose = FALSE)
+    } else {
+      df <- jsonlite::fromJSON(path, simplifyDataFrame = TRUE, flatten = TRUE)
+    }
+    if (!is.data.frame(df)) {
+      cli::cli_abort(c(
+        "JSON at {.file {basename(path)}} is not a rectangular array of records.",
+        "i" = "qsr_read expects an array of flat objects, or NDJSON (one object per line).",
+        "i" = "Flatten nested JSON before reading, or point at the record array."
+      ))
+    }
+    df <- as.data.frame(df, stringsAsFactors = FALSE)
+    kind <- if (ext %in% c("ndjson", "jsonl")) "ndjson" else "json"
+
+  } else if (identical(format, "arrow")) {
+    if (!requireNamespace("arrow", quietly = TRUE)) {
+      cli::cli_abort(c(
+        "Reading Arrow/Feather files needs the {.pkg arrow} package.",
+        "i" = "Install it with {.code install.packages(\"arrow\")}."
+      ))
+    }
+    # read_feather reads both Feather v1 and the Arrow IPC file format
+    # (Feather v2: .arrow/.feather/.ipc), zero-copy and columnar.
+    df <- as.data.frame(arrow::read_feather(path), stringsAsFactors = FALSE)
+    kind <- "arrow"
+
+  } else if (identical(format, "rds")) {
+    obj <- readRDS(path)
+    if (!is.data.frame(obj)) {
+      coerced <- try(as.data.frame(obj, stringsAsFactors = FALSE), silent = TRUE)
+      if (inherits(coerced, "try-error") || !is.data.frame(coerced)) {
+        cli::cli_abort(c(
+          "RDS at {.file {basename(path)}} holds a {.cls {class(obj)[1]}}, not a data.frame.",
+          "i" = "qsr_read returns tabular data; readRDS() the object directly if it is not a table."
+        ))
+      }
+      obj <- coerced
+    }
+    df <- obj
+    kind <- "rds"
+
+  } else {  # rdata / rda: a container of named objects
+    e <- new.env(parent = emptyenv())
+    objs <- load(path, envir = e)
+    is_df <- vapply(objs, function(o) is.data.frame(get(o, envir = e)), logical(1))
+    if (!any(is_df)) {
+      cli::cli_abort(c(
+        "{.file {basename(path)}} has no data.frame ({.val {length(objs)}} object{?s}: {.val {objs}}).",
+        "i" = "load() it directly to reach non-tabular objects."
+      ))
+    }
+    dfs <- objs[is_df]
+    df <- get(dfs[[1]], envir = e)
+    if (length(dfs) > 1) {
+      cli::cli_alert_info(
+        "{.file {basename(path)}} has {.val {length(dfs)}} data.frames ({.val {dfs}}); loaded {.val {dfs[[1]]}}."
+      )
+    }
+    kind <- "rdata"
+  }
+
+  # Shared projection: column subset (guarded intersect) then row cap.
+  if (!is.null(columns)) {
+    keep <- intersect(columns, names(df))
+    if (length(keep)) df <- df[, keep, drop = FALSE]
+  }
+  if (!is.null(n_rows) && nrow(df) > n_rows) df <- utils::head(df, n_rows)
+
   elapsed <- proc.time()[["elapsed"]] - t0
   cli::cli_alert_success(
     "Read {.val {nrow(df)}} rows x {.val {ncol(df)}} cols from {.file {basename(path)}} in {.val {round(elapsed, 3)}}s {.emph ({kind})}"

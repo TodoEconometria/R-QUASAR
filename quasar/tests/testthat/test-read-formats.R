@@ -127,3 +127,84 @@ test_that("qsr_read() reads dBase .dbf", {
   expect_equal(nrow(d), 2)
   expect_true("g" %in% names(d))
 })
+
+# ---- qsr_read() JSON / NDJSON (jsonlite) ----
+
+test_that("qsr_read() reads a JSON array of objects", {
+  skip_if_not_installed("jsonlite")
+  tf <- tempfile(fileext = ".json")
+  jsonlite::write_json(data.frame(x = 1:3, y = c("a", "b", "c")),
+                       tf, dataframe = "rows")
+  on.exit(unlink(tf))
+
+  d <- qsr_read(tf, register = FALSE)
+  expect_s3_class(d, "data.frame")
+  expect_equal(nrow(d), 3)
+  expect_equal(names(d), c("x", "y"))
+})
+
+test_that("qsr_read() reads NDJSON and keeps NA", {
+  skip_if_not_installed("jsonlite")
+  tf <- tempfile(fileext = ".ndjson")
+  jsonlite::stream_out(data.frame(x = c(1, NA, 3), y = c("a", "b", "c")),
+                       file(tf), verbose = FALSE)
+  on.exit(unlink(tf))
+
+  d <- qsr_read(tf, register = FALSE)
+  expect_equal(nrow(d), 3)
+  expect_true(anyNA(d$x))
+})
+
+test_that("qsr_read() errors on non-rectangular JSON", {
+  skip_if_not_installed("jsonlite")
+  tf <- tempfile(fileext = ".json")
+  writeLines('{"a": {"b": 1}}', tf)  # nested object, not an array of records
+  on.exit(unlink(tf))
+
+  expect_error(qsr_read(tf, register = FALSE), "rectangular|records")
+})
+
+# ---- qsr_read() Arrow / Feather (arrow) ----
+
+test_that("qsr_read() reads an Arrow/Feather file", {
+  skip_if_not_installed("arrow")
+  tf <- tempfile(fileext = ".arrow")
+  arrow::write_feather(data.frame(x = 1:3, g = c("a", "b", "c")), tf)
+  on.exit(unlink(tf))
+
+  d <- qsr_read(tf, register = FALSE)
+  expect_equal(nrow(d), 3)
+  expect_equal(d$g, c("a", "b", "c"))
+})
+
+# ---- qsr_read() native R: RDS / RData ----
+
+test_that("qsr_read() reads a saved data.frame from .rds", {
+  tf <- tempfile(fileext = ".rds")
+  saveRDS(data.frame(a = 1:2, b = 3:4, c = 5:6), tf)
+  on.exit(unlink(tf))
+
+  d <- qsr_read(tf, columns = c("a", "c"), register = FALSE)
+  expect_equal(names(d), c("a", "c"))
+  expect_equal(nrow(d), 2)
+})
+
+test_that("qsr_read() errors when .rds is not tabular", {
+  tf <- tempfile(fileext = ".rds")
+  saveRDS(lm(1:3 ~ c(1, 2, 4)), tf)
+  on.exit(unlink(tf))
+
+  expect_error(qsr_read(tf, register = FALSE), "data.frame")
+})
+
+test_that("qsr_read() loads the first data.frame from .RData", {
+  tf <- tempfile(fileext = ".RData")
+  df <- data.frame(x = 1:4)
+  scalar <- 42L
+  save(df, scalar, file = tf)
+  on.exit(unlink(tf))
+
+  d <- qsr_read(tf, n_rows = 2, register = FALSE)
+  expect_s3_class(d, "data.frame")
+  expect_equal(nrow(d), 2)
+})

@@ -46,6 +46,13 @@ The Python object or prediction results (invisibly).
 Zero-friction Python interop. Import modules, call functions,
 fit sklearn/prophet models - all without touching reticulate directly.
 }
+\section{Security}{
+
+\code{package}, \code{fn} and \code{args} are executed in Python (and, with \code{install = TRUE}, installed from PyPI). Pass only trusted constants - never values
+derived from untrusted data or user input, as that is equivalent to
+arbitrary code execution.
+}
+
 \examples{
 \dontrun{
 # Simple function call

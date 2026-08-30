@@ -16,6 +16,8 @@
 ^src/.*\.(so|dll|dylib)$
 ^src/symbols\.rds$
 ^cran-comments\.md$
+^paper\.md$
+^paper\.bib$
 ^data-raw$
 ^\.github$
 ^outputs$

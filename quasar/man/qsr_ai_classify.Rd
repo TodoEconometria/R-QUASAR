@@ -28,7 +28,9 @@ disambiguation (e.g., "Rural Bolivian agricultural survey").}
 
 \item{batch_size}{Integer. Number of unique values to send per API call.
 Default 100.}
-\item{provider}{Character. "anthropic" (default) or "ollama" (local Ollama server, no API key -- data never leaves the machine).}
+
+\item{provider}{Character. \code{"anthropic"} (default) or \code{"ollama"} (local, no
+API key -- data never leaves the machine).}
 }
 \value{
 The input data frame with a new column \verb{\{column\}_classified}

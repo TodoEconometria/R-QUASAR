@@ -25,7 +25,10 @@ qsr_ai_review(
 \code{ANTHROPIC_API_KEY} environment variable.}
 
 \item{model}{Character. Claude model to use. Default \code{"claude-sonnet-4-6-20250514"}.}
-\item{provider}{Character. "anthropic" (default) or "ollama" (local Ollama server, no API key -- data never leaves the machine).}
+
+\item{provider}{Character. \code{"anthropic"} (default, Claude API) or \code{"ollama"}
+(a local Ollama server -- no API key, nothing leaves the machine; set the
+model with the \code{QSR_OLLAMA_MODEL} env var and the host with \code{OLLAMA_HOST}).}
 }
 \value{
 A list with \code{findings} (character vector of changes detected),

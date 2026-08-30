@@ -36,4 +36,5 @@ qsr_validate(checks = list(
     if (any(duplicated(df$id))) "Duplicate ids found" else TRUE
   }
 ))
+
 }

@@ -13,6 +13,9 @@ NULL
 #' Read a CSV file using Polars (10-30x faster than read.csv).
 #' @param path Character. Path to the CSV file.
 #' @param n_rows Integer or NULL. Max rows to read.
+#' @param separator Character. Field delimiter (first byte is used, e.g. "|", ",", or a tab).
+#' @param columns Character vector or NULL. Columns to read; when given, Polars pushes
+#'   the projection down to the scan and only reads those columns from disk.
 #' @export
 rust_read_csv <- function(path, n_rows, separator, columns) .Call(wrap__rust_read_csv, path, n_rows, separator, columns)
 

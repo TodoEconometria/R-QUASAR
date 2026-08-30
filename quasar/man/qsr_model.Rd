@@ -10,6 +10,7 @@ qsr_model(
   data = NULL,
   name = "last",
   family = NULL,
+  weights = NULL,
   ...
 )
 }
@@ -26,6 +27,10 @@ from context.}
 
 \item{family}{For GLM models. Ignored for \code{"lm"}.}
 
+\item{weights}{Optional survey/regression weights: either the name of a
+column in \code{data} or a numeric vector of length \code{nrow(data)}. Essential for
+survey microdata, where estimates must use the elevation factor.}
+
 \item{...}{Additional arguments passed to the fitting function.}
 }
 \value{
@@ -41,5 +46,9 @@ qsr_data(mtcars)
 qsr_model(mpg ~ wt + hp)
 qsr_model(mpg ~ wt + hp + disp, name = "full")
 qsr_model(am ~ wt + hp, type = "logit")
+
+# Weighted regression on survey microdata:
+qsr_read("EPA2016.sav")
+qsr_model(parado ~ sexo + edad + educacion, weights = "FACTOREL")
 }
 }

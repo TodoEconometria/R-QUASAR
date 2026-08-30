@@ -9,6 +9,13 @@
   These are the native formats of survey microdata (EPA/ENAHO/EH), so the survey
   workflow no longer needs a separate import step. `columns` and `n_rows` are
   pushed to haven's `col_select` / `n_max`.
+* **`qsr_read()` also reads modern interchange and native R formats**:
+  JSON / NDJSON (`.json`, `.ndjson`, `.jsonl`, via jsonlite), Arrow / Feather IPC
+  (`.arrow`, `.feather`, `.ipc`, via arrow) and native R (`.rds`, and
+  `.rdata`/`.rda` — the first data.frame in the container is loaded). RDS/RData
+  let an analyst resume a session from a saved data.frame with the same
+  `qsr_read()` call; JSON must be an array of flat objects (or NDJSON), and a
+  nested/non-tabular payload aborts with a clear message.
 * **New `qsr_read_fwf()`** reads fixed-width (positional) files — the format of
   classic survey record layouts (INE "diseño de registro"). Fields are given by
   `positions` (start-end pairs) or `widths`, with explicit `encoding`
