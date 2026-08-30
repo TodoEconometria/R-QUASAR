@@ -53,4 +53,5 @@ harmonized <- qsr_crosswalk(
   apply_before = 2017
 )
 table(harmonized$ubigeo_harmonized)
+
 }

@@ -4,12 +4,17 @@
 \alias{rust_read_csv}
 \title{Read a CSV file using Polars (10-30x faster than read.csv).}
 \usage{
-rust_read_csv(path, n_rows)
+rust_read_csv(path, n_rows, separator, columns)
 }
 \arguments{
 \item{path}{Character. Path to the CSV file.}
 
 \item{n_rows}{Integer or NULL. Max rows to read.}
+
+\item{separator}{Character. Field delimiter (first byte is used, e.g. "|", ",", or a tab).}
+
+\item{columns}{Character vector or NULL. Columns to read; when given, Polars pushes
+the projection down to the scan and only reads those columns from disk.}
 }
 \description{
 Read a CSV file using Polars (10-30x faster than read.csv).

@@ -9,6 +9,9 @@ qsr_read(
   format = "auto",
   n_rows = NULL,
   columns = NULL,
+  delim = NULL,
+  encoding = "utf8",
+  sheet = NULL,
   name = "data",
   register = TRUE
 )
@@ -23,7 +26,19 @@ When "auto", the format is detected from the file extension.}
 reads all rows.}
 
 \item{columns}{Character vector or NULL. Column names to select. Default NULL
-reads all columns.}
+reads all columns. For CSV, the projection is pushed down to the Polars scan,
+so only these columns are read from disk (key for wide files).}
+
+\item{delim}{Character or NULL. CSV field delimiter (e.g. "|", ";", "\\t").
+Default NULL uses "," (or "\\t" for a \code{.tsv} file).}
+
+\item{encoding}{Character. Source file encoding. Default "utf8". Any other value
+(e.g. "latin1"/"ISO-8859-1") triggers a streaming transcode to a temporary
+UTF-8 copy before reading, preserving accents and "ñ".}
+
+\item{sheet}{Integer or character or NULL. For Excel (\code{.xlsx}/\code{.xls}), the sheet
+to read (position or name). Default NULL reads the first sheet. Ignored for
+other formats.}
 
 \item{name}{Character. Name to register the data under in the QUASAR context.
 Default "data".}
@@ -48,7 +63,19 @@ Supported formats:
 \itemize{
 \item \strong{CSV}: \code{.csv}, \code{.tsv}, \code{.txt}
 \item \strong{Parquet}: \code{.parquet}, \code{.pq}
+\item \strong{SPSS}: \code{.sav}, \code{.zsav}, \code{.por} (via haven; survey microdata)
+\item \strong{Stata}: \code{.dta} (via haven)
+\item \strong{SAS}: \code{.sas7bdat}, \code{.xpt} (via haven)
+\item \strong{Excel}: \code{.xlsx}, \code{.xls} (via readxl; use \code{sheet} to pick a sheet)
+\item \strong{dBase}: \code{.dbf} (via foreign; attribute tables, official statistics)
+\item \strong{JSON}: \code{.json} (array of objects), \code{.ndjson}/\code{.jsonl} (one object per
+line) (via jsonlite; nested JSON must be flattened first)
+\item \strong{Arrow/Feather}: \code{.arrow}, \code{.feather}, \code{.ipc} (via arrow; columnar IPC)
+\item \strong{Native R}: \code{.rds} (a saved data.frame) and \code{.rdata}/\code{.rda} (a container;
+the first data.frame is loaded) - to resume a session from saved data
 }
+
+For fixed-width (positional) survey files, use \code{\link[=qsr_read_fwf]{qsr_read_fwf()}}.
 }
 \examples{
 \dontrun{
@@ -63,6 +90,11 @@ qsr_read("data/big.csv", n_rows = 1000)
 
 # Read Parquet (auto-detected from extension)
 qsr_read("data/results.parquet")
+
+# Modern interchange + native R (all auto-detected from extension)
+qsr_read("data/events.ndjson")    # JSON Lines (one object per line)
+qsr_read("data/panel.arrow")      # Arrow IPC / Feather v2
+qsr_read("data/session.rds")      # resume from a saved data.frame
 
 # After qsr_read(), data is in context - use qsr_table(), qsr_plot() directly
 qsr_read("data/survey.csv")

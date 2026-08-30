@@ -356,10 +356,21 @@ qsr_read("survey.parquet")       # Parquet
 qsr_read("hogares.xlsx")        # Excel (.xlsx, .xls) -- use sheet = to pick a sheet
 qsr_read("mapa.dbf")             # dBase (.dbf; attribute tables, official stats)
 qsr_read("data.csv")             # CSV / TSV / TXT
+qsr_read("events.ndjson")        # JSON (.json array) / NDJSON (.ndjson, .jsonl)
+qsr_read("panel.arrow")          # Arrow / Feather IPC (.arrow, .feather, .ipc)
+qsr_read("session.rds")          # native R: .rds and .rdata/.rda (resume a session)
 
 # Read only the columns you need (pushed down to the reader):
 qsr_read("EPA2016.sav", columns = c("AOI", "FACTOREL", "SEXO1", "EDAD5"))
 ```
+
+The three families cover the whole pipeline: **statistical packages** (SPSS /
+Stata / SAS) for the raw survey, **modern interchange** (Parquet / Arrow /
+JSON-NDJSON) for a data lake or an API dump, and **native R** (RDS / RData) to
+save an intermediate data.frame and resume the analysis later with the same
+call. JSON must be an array of flat objects (or NDJSON, one object per line);
+a nested payload aborts with a message telling you to flatten it first. For an
+`.rdata`/`.rda` container with several objects, the first data.frame is loaded.
 
 For **fixed-width** files — the classic format of old survey record layouts
 (e.g. an INE *diseño de registro*), where each variable sits in a fixed byte
@@ -430,7 +441,7 @@ Exported functions organized by layer:
 | Context | `qsr_config`, `qsr_data`, `qsr_model` (supports `weights`), `qsr_get`, `qsr_reset` |
 | Connectors | `qsr_db`, `qsr_spark`, `qsr_fetch`, `qsr_python`, `qsr_search` |
 | Output | `qsr_table`, `qsr_plot`, `qsr_report` |
-| Rust Engine | `qsr_read` (CSV/Parquet/SPSS/Stata/SAS), `qsr_read_fwf` (fixed-width), `qsr_fast_summary`, `qsr_fast_group` (CSV & Parquet), `qsr_fast_filter`, `qsr_fast_sort`, `qsr_benchmark` |
+| Rust Engine | `qsr_read` (CSV/Parquet/SPSS/Stata/SAS/Excel/dBase/JSON-NDJSON/Arrow/RDS/RData), `qsr_read_fwf` (fixed-width), `qsr_fast_summary`, `qsr_fast_group` (CSV & Parquet), `qsr_fast_filter`, `qsr_fast_sort`, `qsr_benchmark` |
 | Analytics | `qsr_clean`, `qsr_test`, `qsr_feature` |
 | ML | `qsr_ml`, `qsr_cv`, `qsr_compare` |
 | Time Series | `qsr_ts` |

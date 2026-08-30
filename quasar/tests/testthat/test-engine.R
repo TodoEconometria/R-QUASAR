@@ -336,7 +336,8 @@ test_that("isolated subprocess works when rquasar is installed", {
   tmp <- .make_test_csv(100)
   on.exit(unlink(tmp))
 
-  result <- .qsr_run_isolated("rust_read_csv", list(tmp, NULL), n_cores = 2L)
+  # rust_read_csv signature is (path, n_rows, separator, columns) - pass all four.
+  result <- .qsr_run_isolated("rust_read_csv", list(tmp, NULL, ",", NULL), n_cores = 2L)
   expect_true(is.list(result))
   expect_true("_nrows" %in% names(result))
   expect_equal(result[["_nrows"]], 100L)

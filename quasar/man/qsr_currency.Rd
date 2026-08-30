@@ -56,4 +56,5 @@ usd <- qsr_currency(
   year_column = "year"
 )
 head(usd[, c("ingreso_laboral", "ingreso_laboral_usd")])
+
 }
