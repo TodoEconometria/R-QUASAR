@@ -28,6 +28,16 @@ test_that("qsr_model() supports weighted logit", {
   expect_equal(unname(coef(m)), unname(coef(ref)))
 })
 
+test_that("qsr_model() weights work when the column is NOT named 'w'", {
+  # Regression test: previously the weight vector was passed to lm as a bare
+  # local `w`, which lm resolved via the data/formula env, so it only worked
+  # when a column literally named 'w' existed. Here the weight is 'wt' and there
+  # is no 'w' column, which used to fail with "object 'w' not found".
+  df2 <- data.frame(y = rnorm(200), x = rnorm(200), wt = runif(200, 0.5, 3))
+  m <- qsr_model(y ~ x, type = "lm", data = df2, weights = "wt")
+  expect_equal(unname(coef(m)), unname(coef(lm(y ~ x, data = df2, weights = wt))))
+})
+
 test_that("qsr_model() unweighted is unchanged", {
   m <- qsr_model(y ~ x, type = "lm", data = df)
   expect_equal(unname(coef(m)), unname(coef(lm(y ~ x, data = df))))

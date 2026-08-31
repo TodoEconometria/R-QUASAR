@@ -399,7 +399,10 @@ qsr_model <- function(formula,
   }
 
   # Fit model (branch on whether weights were supplied so unweighted calls are
-  # unchanged).
+  # unchanged). Weights are injected as a column and passed BY NAME via a quoted
+  # symbol: lm/glm resolve `weights` through model.frame (data + formula env),
+  # not the caller frame, so a bare local vector is unreliable (it only works if
+  # a column of that name happens to exist). The `.qsr_w` column is robust.
   model <- if (is.null(w)) {
     switch(type,
       lm     = stats::lm(formula, data = data, ...),
@@ -408,12 +411,18 @@ qsr_model <- function(formula,
       probit = stats::glm(formula, data = data, family = stats::binomial(link = "probit"), ...)
     )
   } else {
-    switch(type,
-      lm     = stats::lm(formula, data = data, weights = w, ...),
-      glm    = stats::glm(formula, data = data, family = family %||% stats::gaussian(), weights = w, ...),
-      logit  = stats::glm(formula, data = data, family = stats::binomial(link = "logit"), weights = w, ...),
-      probit = stats::glm(formula, data = data, family = stats::binomial(link = "probit"), weights = w, ...)
+    data[[".qsr_w"]] <- w
+    fun <- switch(type,
+      lm     = stats::lm,
+      glm    = stats::glm,
+      logit  = stats::glm,
+      probit = stats::glm
     )
+    args <- list(formula = formula, data = data, weights = quote(.qsr_w), ...)
+    if (type == "glm")    args$family <- family %||% stats::gaussian()
+    if (type == "logit")  args$family <- stats::binomial(link = "logit")
+    if (type == "probit") args$family <- stats::binomial(link = "probit")
+    do.call(fun, args)
   }
 
   # Store in context
