@@ -14,7 +14,7 @@ qsr_fast_group(
 )
 }
 \arguments{
-\item{path}{Character. Path to a CSV file.}
+\item{path}{Character. Path to a CSV or Parquet file.}
 
 \item{by}{Character. Column name to group by.}
 

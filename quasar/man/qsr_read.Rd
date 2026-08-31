@@ -12,6 +12,7 @@ qsr_read(
   delim = NULL,
   encoding = "utf8",
   sheet = NULL,
+  labels = c("keep", "factor"),
   name = "data",
   register = TRUE
 )
@@ -39,6 +40,11 @@ UTF-8 copy before reading, preserving accents and "ñ".}
 \item{sheet}{Integer or character or NULL. For Excel (\code{.xlsx}/\code{.xls}), the sheet
 to read (position or name). Default NULL reads the first sheet. Ignored for
 other formats.}
+
+\item{labels}{For SPSS/Stata/SAS (haven): \code{"keep"} (default) leaves labelled
+vectors (numeric downstream); \code{"factor"} converts labelled columns to
+factors carrying their value labels, so survey categories read as words, not
+codes. Ignored for other formats.}
 
 \item{name}{Character. Name to register the data under in the QUASAR context.
 Default "data".}

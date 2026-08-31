@@ -11,6 +11,7 @@ qsr_model(
   name = "last",
   family = NULL,
   weights = NULL,
+  design = NULL,
   ...
 )
 }
@@ -30,6 +31,12 @@ from context.}
 \item{weights}{Optional survey/regression weights: either the name of a
 column in \code{data} or a numeric vector of length \code{nrow(data)}. Essential for
 survey microdata, where estimates must use the elevation factor.}
+
+\item{design}{Optional complex-survey design for \strong{design-based} inference:
+a \code{survey.design} from \code{\link[=qsr_svydesign]{qsr_svydesign()}} (or \code{\link[survey:svrepdesign]{survey::svrepdesign()}}), or
+\code{TRUE} to reuse the design registered by \code{\link[=qsr_svydesign]{qsr_svydesign()}}. Fits via
+\code{\link[survey:svyglm]{survey::svyglm()}}, so the standard errors account for strata/clusters, not
+just the weights. Supersedes \code{weights} and \code{data} when supplied.}
 
 \item{...}{Additional arguments passed to the fitting function.}
 }

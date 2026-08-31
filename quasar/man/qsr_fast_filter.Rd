@@ -7,7 +7,7 @@
 qsr_fast_filter(path, col, op, value, name = "filtered_data", register = TRUE)
 }
 \arguments{
-\item{path}{Character. Path to a CSV file.}
+\item{path}{Character. Path to a CSV or Parquet file.}
 
 \item{col}{Character. Column name to filter on.}
 
