@@ -11,7 +11,14 @@ qsr_tabulate(
   measure = NULL,
   stat = c("count", "prop", "mean", "sum"),
   digits = NULL,
-  na_rm = TRUE
+  na_rm = TRUE,
+  se = FALSE,
+  design = NULL,
+  strata = NULL,
+  ids = ~1,
+  fpc = NULL,
+  ci_level = 0.95,
+  deff = TRUE
 )
 }
 \arguments{
@@ -33,11 +40,30 @@ total), \code{"mean"} or \code{"sum"} (of \code{measure}).}
 \item{digits}{Integer or NULL. Round the estimate.}
 
 \item{na_rm}{Logical. Drop non-finite weight/measure values. Default TRUE.}
+
+\item{se}{Logical. If TRUE, return \strong{design-based} standard errors,
+confidence intervals and design effects via \code{\link[survey:svyby]{survey::svyby()}}/svymean
+(Taylor linearization) instead of point estimates only. Default FALSE (the
+fast path). Turning it on is what makes a tabulation publication-grade.}
+
+\item{design}{A \code{survey.design} (from \code{\link[=qsr_svydesign]{qsr_svydesign()}} or
+\code{\link[survey:svrepdesign]{survey::svrepdesign()}}), or NULL. When NULL and \code{se = TRUE}, a design is
+built from \code{weight} plus any \code{strata}/\code{ids}/\code{fpc} given here, or the design
+registered by \code{\link[=qsr_svydesign]{qsr_svydesign()}} is reused.}
+
+\item{strata, ids, fpc}{Column names (or formulas) to build the design inline
+when \code{se = TRUE} and no \code{design} is supplied. \code{ids} defaults to \code{~1}.}
+
+\item{ci_level}{Confidence level for the interval. Default 0.95.}
+
+\item{deff}{Logical. Include the design effect column when \code{se = TRUE}.
+Default TRUE.}
 }
 \value{
 A data.frame with the \code{by} columns, \code{n} (unweighted row count per
-group) and \code{estimate} (the weighted statistic), invisibly printed as a tidy
-table.
+group) and \code{estimate} (the weighted statistic). When \code{se = TRUE} it also
+carries \code{se}, \code{ci_low}, \code{ci_high} and (if \code{deff}) \code{deff}. Invisibly printed
+as a tidy table.
 }
 \description{
 The core estimation primitive for survey microdata: weighted counts,
@@ -52,8 +78,9 @@ millones de personas, participación por grupo).
 qsr_read("EPA2016.sav")
 # Weighted distribution of activity status:
 qsr_tabulate(by = "AOI", weight = "FACTOREL", stat = "prop")
-# Weighted population by sex (millions): stat = "count"
-qsr_tabulate(by = "SEXO1", weight = "FACTOREL", stat = "count")
+# Same, but with design-based SE + 95\% CI (stratified by region):
+qsr_tabulate(by = "AOI", weight = "FACTOREL", stat = "prop",
+             se = TRUE, strata = "CCAA")
 }
 
 }

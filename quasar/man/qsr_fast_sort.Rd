@@ -7,7 +7,7 @@
 qsr_fast_sort(path, by, desc = FALSE, name = "sorted_data", register = TRUE)
 }
 \arguments{
-\item{path}{Character. Path to a CSV file.}
+\item{path}{Character. Path to a CSV or Parquet file.}
 
 \item{by}{Character. Column name to sort by.}
 

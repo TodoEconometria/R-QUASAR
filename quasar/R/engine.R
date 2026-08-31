@@ -129,6 +129,10 @@
 #' @param sheet Integer or character or NULL. For Excel (`.xlsx`/`.xls`), the sheet
 #'   to read (position or name). Default NULL reads the first sheet. Ignored for
 #'   other formats.
+#' @param labels For SPSS/Stata/SAS (haven): `"keep"` (default) leaves labelled
+#'   vectors (numeric downstream); `"factor"` converts labelled columns to
+#'   factors carrying their value labels, so survey categories read as words, not
+#'   codes. Ignored for other formats.
 #' @param name Character. Name to register the data under in the QUASAR context.
 #'   Default "data".
 #' @param register Logical. Whether to auto-register in context via
@@ -190,8 +194,10 @@ qsr_read <- function(path,
                      delim = NULL,
                      encoding = "utf8",
                      sheet = NULL,
+                     labels = c("keep", "factor"),
                      name = "data",
                      register = TRUE) {
+  labels <- match.arg(labels)
   if (!file.exists(path)) {
     cli::cli_abort(c(
       "File not found: {.file {path}}",
@@ -230,7 +236,7 @@ qsr_read <- function(path,
   # (.dta) and SAS (.sas7bdat/.xpt) via haven. These are the native formats of
   # ENAHO/EH/EPA-style surveys, so qsr_read handles them directly.
   if (format %in% c("haven", "spss", "stata", "sas")) {
-    return(.qsr_read_haven(path, n_rows, columns, name, register))
+    return(.qsr_read_haven(path, n_rows, columns, labels, name, register))
   }
 
   # Modern interchange + native R formats: JSON/NDJSON (jsonlite), Arrow/Feather
@@ -293,7 +299,7 @@ qsr_read <- function(path,
 # so the haven dependency is only required when actually reading these formats.
 # The reader is chosen from the file extension. Value labels are preserved
 # (haven labelled vectors, which behave numerically downstream).
-.qsr_read_haven <- function(path, n_rows, columns, name, register) {
+.qsr_read_haven <- function(path, n_rows, columns, labels = "keep", name, register) {
   if (!requireNamespace("haven", quietly = TRUE)) {
     cli::cli_abort(c(
       "Reading statistical-package files needs the {.pkg haven} package.",
@@ -315,7 +321,14 @@ qsr_read <- function(path,
   args <- list(path)
   if (!is.null(columns)) args$col_select <- columns
   if (!is.null(n_rows)) args$n_max <- n_rows
-  df <- as.data.frame(do.call(reader, args), stringsAsFactors = FALSE)
+  raw <- do.call(reader, args)
+  # labels = "factor": turn labelled (categorical) columns into factors carrying
+  # their value labels, so survey categories read as words, not codes. "keep"
+  # leaves haven labelled vectors (numeric downstream), the default.
+  if (identical(labels, "factor")) {
+    raw <- haven::as_factor(raw, only_labelled = TRUE)
+  }
+  df <- as.data.frame(raw, stringsAsFactors = FALSE)
   elapsed <- proc.time()[["elapsed"]] - t0
   cli::cli_alert_success(
     "Read {.val {nrow(df)}} rows x {.val {ncol(df)}} cols from {.file {basename(path)}} in {.val {round(elapsed, 3)}}s {.emph (haven/{kind})}"
@@ -465,6 +478,99 @@ qsr_read <- function(path,
     qsr_data(df, name = name)
   }
   invisible(df)
+}
+
+
+#' Write a data.frame to any supported format
+#'
+#' The write half of [qsr_read()]: exports a data.frame to the format implied by
+#' the file extension, so the same framework that reads SPSS/Stata/Parquet/…
+#' also writes them. This closes the round trip — read a survey, clean it, write
+#' it back out (or to Parquet for a lakehouse, to `.sav` for a collaborator, to
+#' `.rds` to resume later) with one call.
+#'
+#' Supported extensions (mirroring [qsr_read()]):
+#' - **CSV**: `.csv`, `.tsv`, `.txt` (via data.table if available, else base)
+#' - **Parquet**: `.parquet`, `.pq` (via arrow)
+#' - **SPSS**: `.sav` · **Stata**: `.dta` · **SAS transport**: `.xpt` (via haven)
+#' - **Excel**: `.xlsx` (via writexl)
+#' - **JSON**: `.json` (array) · **NDJSON**: `.ndjson`, `.jsonl` (via jsonlite)
+#' - **Arrow/Feather**: `.arrow`, `.feather` (via arrow)
+#' - **Native R**: `.rds`, and `.rdata`/`.rda` (saved under `name`)
+#'
+#' `.sas7bdat` cannot be written (no open writer exists); use `.xpt` for SAS.
+#'
+#' @param data A data.frame, or NULL to use the registered context data.
+#' @param path Character. Destination file; the extension picks the format.
+#' @param format Character. `"auto"` (default) detects from the extension, or
+#'   force one of `csv`/`parquet`/`spss`/`stata`/`sas`/`excel`/`json`/`arrow`/`rds`/`rdata`.
+#' @param name Character. For `.rdata`/`.rda`, the object name to store the
+#'   data.frame under. Default `"data"`.
+#' @param ... Passed to the underlying writer.
+#'
+#' @return The `path` (invisibly).
+#'
+#' @examples
+#' \dontrun{
+#' qsr_read("EPA2016.sav")
+#' qsr_write(path = "epa_clean.parquet")   # to a lakehouse
+#' qsr_write(path = "epa_clean.dta")       # to Stata for a collaborator
+#' }
+#'
+#' @export
+qsr_write <- function(data = NULL, path, format = "auto", name = "data", ...) {
+  data <- data %||% .qsr_context$get_data()
+  if (is.null(data)) {
+    cli::cli_abort(c("No data to write.",
+                     "i" = "Pass {.arg data} or register with {.fn qsr_data}."))
+  }
+  df <- as.data.frame(data)
+  ext <- tolower(tools::file_ext(path))
+  if (format == "auto") {
+    format <- switch(ext,
+      csv = , tsv = , txt = "csv",
+      parquet = , pq = "parquet",
+      sav = "spss", dta = "stata", xpt = "sas",
+      xlsx = "excel",
+      json = "json", ndjson = , jsonl = "ndjson",
+      arrow = , feather = "arrow",
+      rds = "rds", rdata = , rda = "rdata",
+      sas7bdat = cli::cli_abort(c(
+        ".sas7bdat cannot be written (no open writer exists).",
+        "i" = "Use {.file .xpt} for SAS, or another format."
+      )),
+      cli::cli_abort("Cannot detect a writer for extension {.val .{ext}}.")
+    )
+  }
+  need <- function(pkg) if (!requireNamespace(pkg, quietly = TRUE)) {
+    cli::cli_abort(c("Writing {.val {format}} needs the {.pkg {pkg}} package.",
+                     "i" = "Install it with {.code install.packages(\"{pkg}\")}."))
+  }
+  t0 <- proc.time()[["elapsed"]]
+  switch(format,
+    csv = if (requireNamespace("data.table", quietly = TRUE)) {
+      data.table::fwrite(df, path, sep = if (identical(ext, "tsv")) "\t" else ",", ...)
+    } else {
+      utils::write.csv(df, path, row.names = FALSE, ...)
+    },
+    parquet = { need("arrow"); arrow::write_parquet(df, path, ...) },
+    spss    = { need("haven"); haven::write_sav(df, path, ...) },
+    stata   = { need("haven"); haven::write_dta(df, path, ...) },
+    sas     = { need("haven"); haven::write_xpt(df, path, ...) },
+    excel   = { need("writexl"); writexl::write_xlsx(df, path, ...) },
+    json    = { need("jsonlite"); jsonlite::write_json(df, path, dataframe = "rows", ...) },
+    ndjson  = { need("jsonlite"); con <- file(path, "w"); on.exit(close(con), add = TRUE)
+                jsonlite::stream_out(df, con, verbose = FALSE, ...) },
+    arrow   = { need("arrow"); arrow::write_feather(df, path, ...) },
+    rds     = saveRDS(df, path, ...),
+    rdata   = { assign(name, df); save(list = name, file = path, ...) },
+    cli::cli_abort("Unsupported write format: {.val {format}}.")
+  )
+  elapsed <- proc.time()[["elapsed"]] - t0
+  cli::cli_alert_success(
+    "Wrote {.val {nrow(df)}} rows x {.val {ncol(df)}} cols to {.file {basename(path)}} in {.val {round(elapsed, 3)}}s {.emph ({format})}"
+  )
+  invisible(path)
 }
 
 
@@ -640,7 +746,7 @@ qsr_sink_parquet <- function(path, out, delim = NULL, columns = NULL,
 #' Polars engine. Useful for quick exploration of large files without loading
 #' them fully into R.
 #'
-#' @param path Character. Path to a CSV file.
+#' @param path Character. Path to a CSV or Parquet file.
 #'
 #' @return A data.frame with summary statistics.
 #'
@@ -653,6 +759,23 @@ qsr_sink_parquet <- function(path, out, delim = NULL, columns = NULL,
 qsr_fast_summary <- function(path) {
   if (!file.exists(path)) {
     cli::cli_abort("File not found: {.file {path}}")
+  }
+
+  # Rust describe scans CSV; for Parquet read columnar and summarise in R.
+  if (tolower(tools::file_ext(path)) %in% c("parquet", "pq")) {
+    dfp <- .qsr_read_parquet_df(path)
+    num <- names(dfp)[vapply(dfp, is.numeric, logical(1))]
+    df <- do.call(rbind, lapply(num, function(cn) {
+      v <- dfp[[cn]]
+      data.frame(column = cn, count = sum(!is.na(v)),
+                 mean = mean(v, na.rm = TRUE), std = stats::sd(v, na.rm = TRUE),
+                 min = min(v, na.rm = TRUE), max = max(v, na.rm = TRUE),
+                 stringsAsFactors = FALSE)
+    }))
+    if (is.null(df)) df <- data.frame(column = character(), count = integer(),
+      mean = numeric(), std = numeric(), min = numeric(), max = numeric())
+    cli::cli_alert_success("Summary of {.val {nrow(df)}} numeric columns {.emph (Parquet, in-memory)}")
+    return(df)
   }
 
   result <- .qsr_adaptive_call(path, "rust_describe", list(path))
@@ -676,7 +799,7 @@ qsr_fast_summary <- function(path) {
 #' Performs group-by operations directly on a file using Polars - no need
 #' to load the full dataset into R first.
 #'
-#' @param path Character. Path to a CSV file.
+#' @param path Character. Path to a CSV or Parquet file.
 #' @param by Character. Column name to group by.
 #' @param col Character. Column name to aggregate.
 #' @param fn Character. Aggregation function: "mean", "sum", "count", "min",
@@ -741,13 +864,21 @@ qsr_fast_group <- function(path,
 }
 
 
+# Read a Parquet file to a plain data.frame via the columnar Rust reader. Shared
+# by the Parquet branches of the fast_* helpers (the Rust ops only scan CSV, so
+# for Parquet we read columnar once and do the op in R).
+.qsr_read_parquet_df <- function(path) {
+  res <- .qsr_adaptive_call(path, "rust_read_parquet", list(path))
+  data_cols <- setdiff(names(res), c("_elapsed_secs", "_nrows"))
+  as.data.frame(res[data_cols], stringsAsFactors = FALSE)
+}
+
+
 # Group-aggregate a Parquet file in R (the Rust engine only scans CSV). Reads
 # the columnar file via the Parquet reader, then aggregates with base R.
 # Output shape matches the CSV path: `by` columns + a `<col>_<fn>` column.
 .qsr_group_parquet <- function(path, by, col, fn) {
-  res <- .qsr_adaptive_call(path, "rust_read_parquet", list(path))
-  data_cols <- setdiff(names(res), c("_elapsed_secs", "_nrows"))
-  df <- as.data.frame(res[data_cols], stringsAsFactors = FALSE)
+  df <- .qsr_read_parquet_df(path)
 
   miss <- setdiff(c(by, if (fn != "count") col), names(df))
   if (length(miss)) {
@@ -783,7 +914,7 @@ qsr_fast_group <- function(path,
 #' Filters rows from a file directly using Polars - processes the file
 #' without loading it entirely into R memory.
 #'
-#' @param path Character. Path to a CSV file.
+#' @param path Character. Path to a CSV or Parquet file.
 #' @param col Character. Column name to filter on.
 #' @param op Character. Operator: "gt" (>), "lt" (<), "gte" (>=), "lte" (<=),
 #'   "eq" (==), "neq" (!=).
@@ -816,6 +947,23 @@ qsr_fast_filter <- function(path,
 
   op <- match.arg(op, c("gt", "lt", "gte", "lte", "eq", "neq"))
 
+  # Rust filter scans CSV; for Parquet read columnar and filter in R.
+  if (tolower(tools::file_ext(path)) %in% c("parquet", "pq")) {
+    t0 <- proc.time()[["elapsed"]]
+    dfp <- .qsr_read_parquet_df(path)
+    if (!col %in% names(dfp)) cli::cli_abort("Column {.val {col}} not found in Parquet.")
+    x <- suppressWarnings(as.numeric(dfp[[col]]))
+    keep <- switch(op, gt = x > value, lt = x < value, gte = x >= value,
+                   lte = x <= value, eq = x == value, neq = x != value)
+    keep[is.na(keep)] <- FALSE
+    df <- dfp[keep, , drop = FALSE]
+    cli::cli_alert_success(
+      "Filtered {.val {nrow(df)}} rows where {.val {col}} {op} {.val {value}} in {.val {round(proc.time()[['elapsed']] - t0, 3)}}s {.emph (Parquet, in-memory)}"
+    )
+    if (register) qsr_data(df, name = name)
+    return(invisible(df))
+  }
+
   result <- .qsr_adaptive_call(path, "rust_filter", list(path, col, op, value))
   elapsed <- result[["_elapsed_secs"]]
   nrows <- result[["_nrows"]]
@@ -839,7 +987,7 @@ qsr_fast_filter <- function(path,
 #' Sorts a file by a column using Polars without loading the full file
 #' into R first.
 #'
-#' @param path Character. Path to a CSV file.
+#' @param path Character. Path to a CSV or Parquet file.
 #' @param by Character. Column name to sort by.
 #' @param desc Logical. Sort in descending order? Default FALSE.
 #' @param name Character. Name for context registration. Default "sorted_data".
@@ -861,6 +1009,19 @@ qsr_fast_sort <- function(path,
                           register = TRUE) {
   if (!file.exists(path)) {
     cli::cli_abort("File not found: {.file {path}}")
+  }
+
+  # Rust sort scans CSV; for Parquet read columnar and sort in R.
+  if (tolower(tools::file_ext(path)) %in% c("parquet", "pq")) {
+    t0 <- proc.time()[["elapsed"]]
+    dfp <- .qsr_read_parquet_df(path)
+    if (!by %in% names(dfp)) cli::cli_abort("Column {.val {by}} not found in Parquet.")
+    df <- dfp[order(dfp[[by]], decreasing = desc), , drop = FALSE]
+    cli::cli_alert_success(
+      "Sorted {.val {nrow(df)}} rows by {.val {by}} in {.val {round(proc.time()[['elapsed']] - t0, 3)}}s {.emph (Parquet, in-memory)}"
+    )
+    if (register) qsr_data(df, name = name)
+    return(invisible(df))
   }
 
   result <- .qsr_adaptive_call(path, "rust_sort", list(path, by, desc))

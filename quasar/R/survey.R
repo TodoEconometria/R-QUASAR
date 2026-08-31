@@ -502,6 +502,73 @@ qsr_decision_log <- function(id,
 }
 
 
+#' Declare a complex survey design
+#'
+#' Wraps [survey::svydesign()] so QUASAR can produce **design-based** standard
+#' errors, confidence intervals and design effects (Taylor linearization) instead
+#' of naive weighted point estimates. Stratification, clustering (PSUs) and the
+#' finite-population correction are honoured — the difference between a headline
+#' number and a number you can put a confidence interval on in a paper. For a
+#' replicate-weight design (BRR/jackknife/bootstrap) build one with
+#' [survey::svrepdesign()] and pass it straight to `design=` in [qsr_tabulate()].
+#'
+#' @param data A data.frame, or NULL to use the registered context data.
+#' @param ids Cluster/PSU identifiers: a column name, a formula (e.g. `~psu`), or
+#'   `~1` for no clustering (independent sampling). Default `~1`.
+#' @param strata Stratification variable: a column name, a formula, or NULL.
+#' @param weights Survey weight: a column name or a formula. Required — a design
+#'   without weights is not a survey.
+#' @param fpc Finite population correction: a column name, a formula, or NULL.
+#' @param nest Logical. Relabel PSU ids within strata (the safe choice for nested
+#'   survey ids such as EPA/ENAHO). Default TRUE.
+#' @param register Logical. Store the design in the context so a later
+#'   `qsr_tabulate(se = TRUE)` / `qsr_model(design = TRUE)` reuses it. Default TRUE.
+#'
+#' @return A `survey.design` object (invisibly).
+#'
+#' @examples
+#' \dontrun{
+#' qsr_read("EPA2016.sav")
+#' # Stratified by region, weighted by the elevation factor:
+#' qsr_svydesign(strata = "CCAA", weights = "FACTOREL")
+#' qsr_tabulate(by = "AOI", stat = "prop", se = TRUE)  # reuses the design
+#' }
+#'
+#' @export
+qsr_svydesign <- function(data = NULL, ids = ~1, strata = NULL, weights = NULL,
+                          fpc = NULL, nest = TRUE, register = TRUE) {
+  if (!requireNamespace("survey", quietly = TRUE)) {
+    cli::cli_abort(c(
+      "Design-based inference needs the {.pkg survey} package.",
+      "i" = "Install it with {.code install.packages(\"survey\")}."
+    ))
+  }
+  data <- data %||% .qsr_context$get_data()
+  if (is.null(data)) {
+    cli::cli_abort(c("No data.", "i" = "Pass {.arg data} or register with {.fn qsr_data}."))
+  }
+  df <- as.data.frame(data)
+  if (is.null(weights)) {
+    cli::cli_abort("{.arg weights} is required (a survey design needs a weight column).")
+  }
+  # Accept either a column name or a formula for each design component.
+  asf <- function(x) {
+    if (is.null(x)) return(NULL)
+    if (inherits(x, "formula")) return(x)
+    stats::reformulate(x)
+  }
+  d <- survey::svydesign(
+    ids = asf(ids) %||% ~1, strata = asf(strata),
+    weights = asf(weights), fpc = asf(fpc), data = df, nest = nest
+  )
+  if (register) .qsr_context$set("design", d)
+  cli::cli_alert_success(
+    "Survey design over {.val {nrow(df)}} obs (Taylor linearization)."
+  )
+  invisible(d)
+}
+
+
 #' Weighted survey tabulation
 #'
 #' The core estimation primitive for survey microdata: weighted counts,
@@ -523,18 +590,33 @@ qsr_decision_log <- function(id,
 #'   total), `"mean"` or `"sum"` (of `measure`).
 #' @param digits Integer or NULL. Round the estimate.
 #' @param na_rm Logical. Drop non-finite weight/measure values. Default TRUE.
+#' @param se Logical. If TRUE, return **design-based** standard errors,
+#'   confidence intervals and design effects via [survey::svyby()]/svymean
+#'   (Taylor linearization) instead of point estimates only. Default FALSE (the
+#'   fast path). Turning it on is what makes a tabulation publication-grade.
+#' @param design A `survey.design` (from [qsr_svydesign()] or
+#'   [survey::svrepdesign()]), or NULL. When NULL and `se = TRUE`, a design is
+#'   built from `weight` plus any `strata`/`ids`/`fpc` given here, or the design
+#'   registered by [qsr_svydesign()] is reused.
+#' @param strata,ids,fpc Column names (or formulas) to build the design inline
+#'   when `se = TRUE` and no `design` is supplied. `ids` defaults to `~1`.
+#' @param ci_level Confidence level for the interval. Default 0.95.
+#' @param deff Logical. Include the design effect column when `se = TRUE`.
+#'   Default TRUE.
 #'
 #' @return A data.frame with the `by` columns, `n` (unweighted row count per
-#'   group) and `estimate` (the weighted statistic), invisibly printed as a tidy
-#'   table.
+#'   group) and `estimate` (the weighted statistic). When `se = TRUE` it also
+#'   carries `se`, `ci_low`, `ci_high` and (if `deff`) `deff`. Invisibly printed
+#'   as a tidy table.
 #'
 #' @examples
 #' \dontrun{
 #' qsr_read("EPA2016.sav")
 #' # Weighted distribution of activity status:
 #' qsr_tabulate(by = "AOI", weight = "FACTOREL", stat = "prop")
-#' # Weighted population by sex (millions): stat = "count"
-#' qsr_tabulate(by = "SEXO1", weight = "FACTOREL", stat = "count")
+#' # Same, but with design-based SE + 95% CI (stratified by region):
+#' qsr_tabulate(by = "AOI", weight = "FACTOREL", stat = "prop",
+#'              se = TRUE, strata = "CCAA")
 #' }
 #'
 #' @export
@@ -544,7 +626,14 @@ qsr_tabulate <- function(data = NULL,
                          measure = NULL,
                          stat = c("count", "prop", "mean", "sum"),
                          digits = NULL,
-                         na_rm = TRUE) {
+                         na_rm = TRUE,
+                         se = FALSE,
+                         design = NULL,
+                         strata = NULL,
+                         ids = ~1,
+                         fpc = NULL,
+                         ci_level = 0.95,
+                         deff = TRUE) {
   stat <- match.arg(stat)
 
   if (is.null(data)) {
@@ -566,7 +655,7 @@ qsr_tabulate <- function(data = NULL,
     weight <- if (length(hit)) hit[[1]] else NULL
     if (!is.null(weight)) {
       cli::cli_alert_info("Using weight column {.field {weight}}.")
-    } else {
+    } else if (!se) {
       cli::cli_alert_warning(
         "No weight column detected; returning unweighted sample tallies."
       )
@@ -586,6 +675,13 @@ qsr_tabulate <- function(data = NULL,
     if (!measure %in% names(df)) {
       cli::cli_abort("Measure column {.val {measure}} not found.")
     }
+  }
+
+  # Design-based inference (Taylor linearization via survey). Opt-in branch so
+  # the default fast path below stays dependency-free and quick.
+  if (se) {
+    return(.qsr_tabulate_svy(df, by, weight, measure, stat, design,
+                             strata, ids, fpc, ci_level, deff, digits))
   }
 
   w <- if (is.null(weight)) rep(1, nrow(df)) else suppressWarnings(as.numeric(df[[weight]]))
@@ -628,6 +724,104 @@ qsr_tabulate <- function(data = NULL,
 # ============================================================
 # Internal helpers
 # ============================================================
+
+# Design-based tabulation via survey. Returns a tidy data.frame with the `by`
+# columns, unweighted n, estimate, se, ci_low/ci_high and (optionally) deff.
+# Kept out of qsr_tabulate() so the fast path carries no survey dependency.
+.qsr_tabulate_svy <- function(df, by, weight, measure, stat, design,
+                              strata, ids, fpc, ci_level, deff, digits) {
+  if (!requireNamespace("survey", quietly = TRUE)) {
+    cli::cli_abort(c(
+      "{.code se = TRUE} needs the {.pkg survey} package.",
+      "i" = "Install it with {.code install.packages(\"survey\")}."
+    ))
+  }
+  asf <- function(x) if (is.null(x)) NULL else if (inherits(x, "formula")) x else stats::reformulate(x)
+
+  # Resolve the design: explicit > inline (strata/ids/fpc) > registered context.
+  if (is.null(design)) {
+    # `ids` counts as "clustered" only if it names a variable. Compare by content
+    # (all.vars), never identical(ids, ~1) -- two ~1 formulas differ by environment.
+    ids_default <- inherits(ids, "formula") && length(all.vars(ids)) == 0L
+    inline <- !is.null(strata) || !is.null(fpc) || !ids_default
+    if (!inline) design <- .qsr_context$get("design")
+    if (is.null(design)) {
+      if (is.null(weight)) { df$.w_srs <- 1; weight <- ".w_srs" }
+      df[[weight]] <- suppressWarnings(as.numeric(df[[weight]]))
+      if (!is.null(measure)) df[[measure]] <- suppressWarnings(as.numeric(df[[measure]]))
+      design <- survey::svydesign(
+        ids = asf(ids) %||% ~1, strata = asf(strata),
+        weights = asf(weight), fpc = asf(fpc), data = df, nest = TRUE
+      )
+    }
+  }
+  vars <- design$variables
+  z <- stats::qnorm(1 - (1 - ci_level) / 2)
+
+  # Unweighted n per group (sample size, not population).
+  n_tab <- if (is.null(by)) {
+    data.frame(n = nrow(vars))
+  } else {
+    stats::aggregate(list(n = rep(1L, nrow(vars))), by = vars[by], FUN = sum)
+  }
+  nkey <- if (is.null(by)) NULL else do.call(paste, c(n_tab[by], sep = "\r"))
+
+  if (stat == "prop") {
+    if (is.null(by)) cli::cli_abort("{.code stat = \"prop\"} needs at least one {.arg by} variable.")
+    cell <- interaction(vars[by], drop = TRUE, sep = "\r")
+    design$variables$.cell <- cell
+    sm  <- survey::svymean(~.cell, design, deff = deff)
+    est <- as.numeric(stats::coef(sm))
+    lab <- sub("^\\.cell", "", names(stats::coef(sm)))   # svymean order = levels order
+    idx <- match(lab, cell)                              # a representative row per cell
+    out <- data.frame(vars[idx, by, drop = FALSE], estimate = est,
+                      se = as.numeric(survey::SE(sm)), row.names = NULL,
+                      stringsAsFactors = FALSE)
+    if (deff) out$deff <- as.numeric(survey::deff(sm))
+    key <- do.call(paste, c(out[by], sep = "\r"))
+    out$n <- n_tab$n[match(key, nkey)]
+
+  } else {
+    FUN <- if (stat == "mean") survey::svymean else survey::svytotal
+    if (stat == "count") { design <- stats::update(design, .one = 1); outcome <- ~.one }
+    else                 { outcome <- stats::reformulate(measure) }
+
+    if (is.null(by)) {
+      eo <- FUN(outcome, design, deff = deff)
+      out <- data.frame(grupo = "Total", estimate = as.numeric(stats::coef(eo)),
+                        se = as.numeric(survey::SE(eo)), stringsAsFactors = FALSE)
+      if (deff) out$deff <- as.numeric(survey::deff(eo))
+      out$n <- nrow(vars)
+    } else {
+      sb  <- as.data.frame(survey::svyby(outcome, stats::reformulate(by), design,
+                                         FUN, deff = deff, vartype = "se"))
+      dcol   <- grep("^DEff", names(sb), value = TRUE)
+      estcol <- setdiff(names(sb), c(by, "se", dcol))[1]
+      out <- data.frame(sb[by], estimate = sb[[estcol]], se = sb[["se"]],
+                        row.names = NULL, stringsAsFactors = FALSE)
+      if (deff && length(dcol)) out$deff <- sb[[dcol[1]]]
+      key <- do.call(paste, c(out[by], sep = "\r"))
+      out$n <- n_tab$n[match(key, nkey)]
+    }
+  }
+
+  out$ci_low  <- out$estimate - z * out$se
+  out$ci_high <- out$estimate + z * out$se
+  if (!is.null(digits)) {
+    for (cc in c("estimate", "se", "ci_low", "ci_high")) out[[cc]] <- round(out[[cc]], digits)
+    if ("deff" %in% names(out)) out$deff <- round(out$deff, 2)
+  }
+  key_cols <- if (is.null(by)) "grupo" else by
+  num_cols <- c("n", "estimate", "se", "ci_low", "ci_high",
+                if ("deff" %in% names(out)) "deff")
+  out <- out[, c(key_cols, num_cols), drop = FALSE]
+  out <- out[order(-out$estimate), , drop = FALSE]
+  rownames(out) <- NULL
+  cli::cli_alert_success(
+    "Design-based {stat} with SE/CI over {.val {nrow(vars)}} rows {.emph (survey/Taylor)}."
+  )
+  out
+}
 
 #' @keywords internal
 .qsr_validation_presets <- function(preset, df) {

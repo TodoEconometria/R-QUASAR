@@ -7,7 +7,7 @@
 qsr_fast_summary(path)
 }
 \arguments{
-\item{path}{Character. Path to a CSV file.}
+\item{path}{Character. Path to a CSV or Parquet file.}
 }
 \value{
 A data.frame with summary statistics.

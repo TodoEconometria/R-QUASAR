@@ -2,6 +2,25 @@
 
 ## New features
 
+* **Design-based survey inference.** New **`qsr_svydesign()`** declares a complex
+  survey design (strata, clusters/PSUs, FPC) wrapping [survey::svydesign()], and
+  **`qsr_tabulate()` gains `se = TRUE`** — returning design-based standard errors,
+  confidence intervals and design effects (Taylor linearization via
+  [survey::svyby()]/svymean) instead of point estimates only. **`qsr_model()`
+  gains `design =`** for [survey::svyglm()] fits (a design-based LPM/GLM). This
+  is what turns a weighted headline number into an estimate with a CI you can put
+  in a paper. Point estimates and SEs are validated to match `survey::` exactly.
+* **`qsr_write()` — the write half of `qsr_read()`.** Exports a data.frame to the
+  format implied by the extension: CSV, Parquet, SPSS (`.sav`), Stata (`.dta`),
+  SAS transport (`.xpt`), Excel (`.xlsx`), JSON/NDJSON, Arrow/Feather, and native
+  RDS/RData. `.sas7bdat` is refused with a helpful message (no open writer). This
+  closes the read/write round trip across all supported families.
+* **`qsr_read(labels = "factor")`** converts SPSS/Stata/SAS *labelled* columns to
+  factors carrying their value labels, so survey categories read as words, not
+  codes (default `"keep"` is unchanged and backward-compatible).
+* **`qsr_fast_filter()`, `qsr_fast_sort()`, `qsr_fast_summary()` now accept
+  Parquet** inputs (columnar read + in-memory op), matching `qsr_fast_group()`.
+
 * **`qsr_model()` now accepts `weights`** (a column name or a numeric vector) for weighted regression -- essential for survey microdata (the elevation factor). Unweighted calls are unchanged.
 
 * **`qsr_read()` now reads SPSS (`.sav`, `.zsav`, `.por`), Stata (`.dta`) and SAS (`.sas7bdat`, `.xpt`), plus Excel (`.xlsx`, `.xls`) and dBase (`.dbf`)

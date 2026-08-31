@@ -410,6 +410,32 @@ qsr_tabulate(by = "region", weight = "FACTOREL", measure = "income", stat = "mea
 `"mean"` or `"sum"` (of `measure`). The result is a tidy data.frame with the
 grouping columns, `n` (unweighted rows) and `estimate`.
 
+### Design-based standard errors (for papers)
+
+A weighted point estimate is not enough for publication — you need a standard
+error that respects the sampling design (strata, clusters). Declare the design
+once with `qsr_svydesign()`, then ask `qsr_tabulate()` for `se = TRUE`:
+
+```r
+# Stratified by region, weighted by the elevation factor:
+qsr_svydesign(strata = "CCAA", weights = "FACTOREL")
+
+# Now every tabulation carries SE, 95% CI and the design effect:
+qsr_tabulate(by = "AOI", stat = "prop", se = TRUE)   # reuses the design
+```
+
+The result gains `se`, `ci_low`, `ci_high` and `deff`. Under the hood this is
+Taylor linearization via [survey::svyby()]/svymean, so the numbers match the
+`survey` package exactly — QUASAR just gives you one call instead of building the
+design and calling `svyby` by hand. For replicate-weight designs (BRR/jackknife/
+bootstrap) build one with `survey::svrepdesign()` and pass it as `design =`.
+
+`qsr_model()` takes the same design for design-based regression SEs:
+
+```r
+qsr_model(parado ~ mujer + extranjero, type = "lm", design = TRUE)  # svyglm
+```
+
 ### Weighted regression
 
 Survey estimates must use the weight in the model too. Pass `weights` to
@@ -429,6 +455,22 @@ qsr_model(parado ~ edad + educacion, type = "logit", weights = "FACTOREL")
 > the raw statistical-package file to weighted population estimates, without
 > leaving R and without a separate import step.
 
+### Writing back
+
+`qsr_write()` is the mirror of `qsr_read()`: it writes a data.frame to the format
+implied by the extension, across the same families. Clean a survey once and hand
+it to whoever needs it in their tool:
+
+```r
+qsr_read("EPA2016.sav")            # SPSS in
+# ... clean / recode ...
+qsr_write(path = "epa_clean.parquet")   # to a lakehouse
+qsr_write(path = "epa_clean.dta")       # to Stata for a co-author
+qsr_write(path = "epa_clean.rds")       # to resume the session later
+```
+
+(`.sas7bdat` cannot be written — no open writer exists — so use `.xpt` for SAS.)
+
 ---
 
 ## Function Reference
@@ -438,15 +480,15 @@ Exported functions organized by layer:
 | Layer | Functions |
 |-------|-----------|
 | Scaffold | `qsr_init` |
-| Context | `qsr_config`, `qsr_data`, `qsr_model` (supports `weights`), `qsr_get`, `qsr_reset` |
+| Context | `qsr_config`, `qsr_data`, `qsr_model` (supports `weights`, `design`), `qsr_get`, `qsr_reset` |
 | Connectors | `qsr_db`, `qsr_spark`, `qsr_fetch`, `qsr_python`, `qsr_search` |
 | Output | `qsr_table`, `qsr_plot`, `qsr_report` |
-| Rust Engine | `qsr_read` (CSV/Parquet/SPSS/Stata/SAS/Excel/dBase/JSON-NDJSON/Arrow/RDS/RData), `qsr_read_fwf` (fixed-width), `qsr_fast_summary`, `qsr_fast_group` (CSV & Parquet), `qsr_fast_filter`, `qsr_fast_sort`, `qsr_benchmark` |
+| Rust Engine | `qsr_read` (CSV/Parquet/SPSS/Stata/SAS/Excel/dBase/JSON-NDJSON/Arrow/RDS/RData; `labels="factor"`), `qsr_write` (same families), `qsr_read_fwf` (fixed-width), `qsr_fast_summary`/`qsr_fast_group`/`qsr_fast_filter`/`qsr_fast_sort` (CSV & Parquet), `qsr_benchmark` |
 | Analytics | `qsr_clean`, `qsr_test`, `qsr_feature` |
 | ML | `qsr_ml`, `qsr_cv`, `qsr_compare` |
 | Time Series | `qsr_ts` |
 | Research | `qsr_download`, `qsr_panel`, `qsr_scrape`, `qsr_spatial`, `qsr_load_folder`, `qsr_guide` |
-| Survey | `qsr_tabulate` (weighted), `qsr_normalize_text`, `qsr_crosswalk`, `qsr_currency`, `qsr_validate`, `qsr_decision_log` |
+| Survey | `qsr_svydesign`, `qsr_tabulate` (weighted, design-based `se`), `qsr_normalize_text`, `qsr_crosswalk`, `qsr_currency`, `qsr_validate`, `qsr_decision_log` |
 | AI | `qsr_ai_review`, `qsr_ai_classify`, `qsr_ai_flag` |
 | Deploy | `qsr_deploy` |
 

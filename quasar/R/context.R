@@ -306,6 +306,11 @@ qsr_data <- function(data, name = NULL) {
 #' @param weights Optional survey/regression weights: either the name of a
 #'   column in `data` or a numeric vector of length `nrow(data)`. Essential for
 #'   survey microdata, where estimates must use the elevation factor.
+#' @param design Optional complex-survey design for **design-based** inference:
+#'   a `survey.design` from [qsr_svydesign()] (or [survey::svrepdesign()]), or
+#'   `TRUE` to reuse the design registered by [qsr_svydesign()]. Fits via
+#'   [survey::svyglm()], so the standard errors account for strata/clusters, not
+#'   just the weights. Supersedes `weights` and `data` when supplied.
 #' @param ... Additional arguments passed to the fitting function.
 #'
 #' @return The fitted model object (also stored in context).
@@ -328,9 +333,43 @@ qsr_model <- function(formula,
                       name   = "last",
                       family = NULL,
                       weights = NULL,
+                      design = NULL,
                       ...) {
 
   type <- match.arg(type)
+
+  # Design-based fit via survey::svyglm for complex-survey inference. The point
+  # estimates match a weighted lm/glm, but the SEs account for strata/clusters
+  # (what a paper needs). `design = TRUE` reuses the design from qsr_svydesign().
+  if (!is.null(design)) {
+    if (!requireNamespace("survey", quietly = TRUE)) {
+      cli::cli_abort(c(
+        "{.arg design} needs the {.pkg survey} package.",
+        "i" = "Install it with {.code install.packages(\"survey\")}."
+      ))
+    }
+    des <- if (isTRUE(design)) .qsr_context$get("design") else design
+    if (is.null(des) || !inherits(des, "survey.design")) {
+      cli::cli_abort(c(
+        "{.arg design} must be a {.cls survey.design} (from {.fn qsr_svydesign}) or {.code TRUE} to reuse the registered one.",
+        "i" = "Register one first with {.fn qsr_svydesign}."
+      ))
+    }
+    fam <- switch(type,
+      lm     = stats::gaussian(),
+      glm    = family %||% stats::gaussian(),
+      logit  = stats::binomial(link = "logit"),
+      probit = stats::binomial(link = "probit")
+    )
+    model <- survey::svyglm(formula, design = des, family = fam, ...)
+    .qsr_context$set_model(model, name)
+    resp  <- as.character(formula)[2]
+    preds <- as.character(formula)[3]
+    cli::cli_alert_success(
+      "Model {.val {name}} (svyglm/{type}): {resp} ~ {preds} {.emph (design-based SE)}"
+    )
+    return(invisible(model))
+  }
 
   # Get data from context if not provided
   data <- data %||% .qsr_context$get_data()
