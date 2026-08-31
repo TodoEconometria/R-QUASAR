@@ -1,8 +1,8 @@
 ---
-title: "Complex Survey Designs: Validate, Model, and Hand Off"
+title: "Complex Survey Designs: Design-Based Standard Errors"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Complex Survey Designs: Validate, Model, and Hand Off}
+  %\VignetteIndexEntry{Complex Survey Designs: Design-Based Standard Errors}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -22,14 +22,14 @@ knitr::opts_chunk$set(
 )
 ```
 
-## Know the division of labor
+## From weighted point estimates to defensible ones
 
-`rquasar` speeds up the *plumbing* around survey microdata — validation,
-harmonization, and publication-ready output. It is **not** a design-based
-inference engine, and it does not pretend to be. For estimates that account for
-weights, strata, and finite-population corrections, the
-[`survey`](https://cran.r-project.org/package=survey) package is the standard,
-and `rquasar` hands off to it.
+A weighted mean is not enough for a paper: you need a standard error that
+respects the sampling design (strata, clusters, finite-population correction).
+`rquasar` builds this on top of the
+[`survey`](https://cran.r-project.org/package=survey) package — so you get the
+correct numbers in one call, and they match `survey` **exactly**. `rquasar`
+does not reinvent Lumley's estimators; it removes the boilerplate around them.
 
 This vignette uses the classic `api` data (California school Academic
 Performance Index) shipped with `survey`.
@@ -43,37 +43,46 @@ data(api, package = "survey")   # loads apistrat, apiclus1, apisrs, ...
 str(apistrat[, c("api00", "meals", "ell", "pw", "stype", "fpc")])
 ```
 
-## 1. Validate with rquasar
+## 1. Declare the design once
 
-```{r validate}
+```{r design}
 qsr_config()
 qsr_data(apistrat)
 qsr_validate(checks = "survey")
+
+# Stratified by school type, weighted by pw, with the FPC:
+qsr_svydesign(strata = "stype", weights = "pw", fpc = "fpc")
 ```
 
-## 2. A quick descriptive model (unweighted)
+## 2. Design-based tabulation: estimate, SE, CI, deff
 
-`qsr_model()` fits an ordinary model — useful for exploration, but it ignores
-the sampling design:
+Ask `qsr_tabulate()` for `se = TRUE` and it returns the mean API by school type
+with a design-based standard error, a 95% confidence interval and the design
+effect — Taylor linearization, via the design just declared:
+
+```{r tab}
+qsr_tabulate(by = "stype", measure = "api00", stat = "mean", se = TRUE, digits = 1)
+```
+
+These are the same numbers `survey::svyby()` produces — to machine precision:
+
+```{r check}
+des <- survey::svydesign(ids = ~1, strata = ~stype, weights = ~pw,
+                         fpc = ~fpc, data = apistrat)
+as.data.frame(survey::svyby(~api00, ~stype, des, survey::svymean, vartype = "se"))
+```
+
+## 3. Design-based regression
+
+Pass `design = TRUE` to fit through `survey::svyglm()`, so the coefficients'
+standard errors account for the design (not just the weights):
 
 ```{r model}
-qsr_model(api00 ~ meals + ell)
-qsr_table(caption = "Table 1. OLS (unweighted, exploratory)")
+qsr_model(api00 ~ meals + ell, design = TRUE)
+qsr_table(caption = "Table 1. Design-based regression (svyglm)")
 ```
 
-## 3. Hand off to `survey` for design-based estimates
-
-When the numbers have to be correct for the design, build a design object and
-estimate with `survey`. `rquasar` does not do this for you — it points you here:
-
-```{r svy}
-design <- survey::svydesign(
-  ids = ~1, strata = ~stype, weights = ~pw, fpc = ~fpc, data = apistrat
-)
-survey::svymean(~api00, design)
-summary(survey::svyglm(api00 ~ meals + ell, design = design))$coefficients
-```
-
-The difference between the two model tables is the sampling design at work —
-which is exactly why design-based inference belongs in `survey`, not in a
-convenience wrapper.
+For a replicate-weight design (BRR / jackknife / bootstrap), build one with
+`survey::svrepdesign()` and pass it straight to `design =`. The default
+`qsr_tabulate()` (without `se`) stays a fast, dependency-free point estimate;
+`se = TRUE` is the opt-in that makes it publication-grade.

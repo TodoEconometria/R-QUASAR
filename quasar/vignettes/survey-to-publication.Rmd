@@ -176,6 +176,21 @@ qsr_decision_log(
 )
 ```
 
+## Read any format, write it back
+
+The toolchain is format-agnostic. `qsr_read()` auto-detects SPSS/Stata/SAS,
+Excel, dBase, CSV/Parquet/Arrow, JSON/NDJSON, RDS/RData and fixed-width record
+layouts (`qsr_read_fwf()`); `labels = "factor"` turns SPSS/Stata value labels
+into readable factors. `qsr_write()` is the mirror — hand a cleaned survey to a
+co-author in their tool, or park it in Parquet for a lakehouse:
+
+```{r io, eval = FALSE}
+qsr_read("ENAHO2023.sav", labels = "factor")   # SPSS in, categories as words
+# ... clean / harmonize / deflate ...
+qsr_write(path = "enaho_clean.parquet")         # to a lakehouse
+qsr_write(path = "enaho_clean.dta")             # to Stata for a co-author
+```
+
 ## Download guides
 
 For surveys requiring manual download (INE Bolivia, INEI Peru, DANE Colombia),
