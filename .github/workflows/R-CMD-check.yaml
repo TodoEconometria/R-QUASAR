@@ -20,7 +20,9 @@ jobs:
         config:
           - {os: ubuntu-latest,  r: 'release'}
           - {os: ubuntu-latest,  r: 'devel'}
-          - {os: macos-latest,   r: 'release'}
+          # macos-14 (SDK estable) en vez de macos-latest (macOS 26 bleeding-edge,
+          # donde Rust targetea una versión más nueva que R y el linker avisa).
+          - {os: macos-14,       r: 'release'}
           - {os: windows-latest, r: 'release'}
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
