@@ -26,6 +26,9 @@ jobs:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
       _R_CHECK_FORCE_SUGGESTS_: false
+      # pak: incluir LinkingTo al construir de fuente (RSPM sirve RSQLite como
+      # source y su LinkingTo cpp11 no entra en el plan -> falla sin esto).
+      PKG_INCLUDE_LINKINGTO: true
     steps:
       - uses: actions/checkout@v4
 
