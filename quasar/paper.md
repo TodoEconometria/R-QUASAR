@@ -9,7 +9,7 @@ tags:
   - data engineering
 authors:
   - name: Juan Marcelo Gutierrez Miranda
-    orcid: 0000-0000-0000-0000
+    orcid: 0000-0002-4452-7934
     affiliation: 1
 affiliations:
   - name: TodoEconometria, Spain
@@ -63,8 +63,13 @@ design-based estimation, and general-purpose reporting and data-manipulation
 packages— but the repetitive integration between raw microdata and
 publication-ready output, together with a transparent path to out-of-memory
 scale, is left to each analyst to reassemble. `rquasar` packages that integration
-as a coherent, reproducible framework, aimed at researchers and public-statistics
-practitioners who need auditable output at scale.
+as a coherent, reproducible framework: it reads the native formats of survey
+microdata directly (SPSS, Stata, SAS, fixed-width record layouts, Excel, and the
+columnar formats), produces weighted, design-based standard errors, confidence
+intervals and design effects in a single call by building on `survey` rather than
+reimplementing it, and writes results back out to any of those formats. It is
+aimed at researchers and public-statistics practitioners who need auditable
+output at scale.
 
 # Acknowledgements
 

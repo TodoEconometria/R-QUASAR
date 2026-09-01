@@ -2,7 +2,8 @@ Package: rquasar
 Title: Query-Driven Unified Automated Stack for Analytical Runtime
 Version: 0.1.0
 Authors@R: 
-    person("Juan Marcelo", "Gutierrez Miranda", , "info@todoeconometria.com", role = c("aut", "cre"))
+    person("Juan Marcelo", "Gutierrez Miranda", , "info@todoeconometria.com", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-4452-7934"))
 Description: A framework for R that eliminates boilerplate and
     standardizes project architecture for data scientists and academic
     researchers.
