@@ -55,4 +55,10 @@ jobs:
         with:
           working-directory: quasar
           upload-snapshots: true
+          # Solo los ERRORES rompen el job. En macOS, rustc compila la .a para
+          # el SDK instalado (p.ej. 14.5) y R enlaza contra una versión anterior
+          # (14.0) -> ld avisa "built for newer macOS version". Es benigno (el
+          # paquete enlaza y corre); no debe tumbar la CI. Si CRAN lo señala, se
+          # fija MACOSX_DEPLOYMENT_TARGET en Makevars.
+          error-on: '"error"'
           build_args: 'c("--no-manual","--compact-vignettes=gs+qpdf")'
