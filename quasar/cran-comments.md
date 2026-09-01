@@ -31,9 +31,10 @@ The single NOTE contains:
    required (csv, parquet, lazy, and the aggregation/filter/sort kernels used by
    the exported functions).
 
-3. **Invalid URL (repository).** The `URL`/`BugReports` links point to the
-   project repository, which is being made public at submission time; the 404
-   resolves once the repository is public.
+   The repository (`URL`/`BugReports`) is public
+   (<https://github.com/TodoEconometria/R-QUASAR>), so those links resolve.
+
+The maintainer's ORCID (0000-0002-4452-7934) is recorded in `Authors@R`.
 
 ## System requirements
 
