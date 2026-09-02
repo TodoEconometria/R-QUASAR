@@ -17,3 +17,7 @@ quasar/src/Makevars.win
 # IDE
 .vscode/
 .claude/
+
+# Doc interno de desarrollo (NO publico)
+CONTEXT.md
+.CONTEXT.md
