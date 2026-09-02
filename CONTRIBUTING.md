@@ -15,6 +15,10 @@ does the analysis and the implementation. This keeps the codebase coherent,
 auditable, and small, and puts the emphasis on the intent of a change rather
 than the volume of code.
 
+The reasoning behind this policy — evaluating the *process* and intent rather
+than AI-generated output — is developed in the companion whitepaper
+[**Evaluación por PROMPTS**](https://github.com/TodoEconometria/evaluacion-prompts-ia).
+
 ## How to contribute
 
 1. **Open an issue** describing the problem or idea: what, why, and the context.
