@@ -16,6 +16,8 @@ qsr_read_layout(
   col_dec = "Decimales",
   col_pos = "Posición",
   col_label = "Descripción",
+  col_valkey = "Diccionario de la variable",
+  value_labels = TRUE,
   apply_decimals = TRUE,
   n_rows = NULL,
   name = "data",
@@ -43,6 +45,15 @@ start position and the human-readable description used as the column label.
 Defaults match the INE EPA layout (label from \code{"Descripción"}).
 \code{col_pos}/\code{col_dec}/\code{col_label} are optional: positions fall back to the
 cumulative sum of widths, decimals to 0, labels to none.}
+
+\item{col_valkey}{Layout column naming, per variable, the value-code table it
+uses (the INE "Diccionario de la variable" key, e.g. \code{TSEXO}). Used with a
+column whose name contains "hoja" (the sheet holding that table) to attach
+value labels. Default matches the INE EPA layout.}
+
+\item{value_labels}{Logical. When the layout is a spreadsheet, parse its code
+tables and attach value labels (haven-labelled columns) so categories carry
+their meaning. Needs the \code{haven} package. Default TRUE.}
 
 \item{apply_decimals}{Logical. Divide numeric fields by \code{10^decimals} (INE
 fixed-width stores implied decimals without a point). Default TRUE.}

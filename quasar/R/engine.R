@@ -678,6 +678,36 @@ qsr_read_fwf <- function(path,
 }
 
 
+# Parse the INE value-code tables. Each "Tablas" sheet stacks several blocks:
+#   <KEY> | .. | VARIABLE     (key row; e.g. TCCAA)
+#   Código | Descripción      (header)
+#   01 | Andalucía | ...       (code -> label rows, until the next block)
+# Returns a named list: KEY -> named character vector (names = code, value = label).
+.qsr_parse_value_tables <- function(layout_path, sheets) {
+  out <- list()
+  for (sh in unique(sheets[!is.na(sheets) & nzchar(sheets)])) {
+    tbl <- tryCatch(
+      suppressMessages(readxl::read_excel(layout_path, sheet = sh, col_names = FALSE)),
+      error = function(e) NULL)
+    if (is.null(tbl) || ncol(tbl) < 2L) next
+    tbl <- as.data.frame(tbl)
+    c1 <- as.character(tbl[[1]]); c2 <- as.character(tbl[[2]])
+    hdr <- which(trimws(c1) == "Código")
+    for (i in seq_along(hdr)) {
+      h <- hdr[i]
+      above <- c1[seq_len(h - 1L)]
+      above <- above[!is.na(above) & nzchar(trimws(above))]
+      if (!length(above)) next
+      key <- trimws(tail(above, 1))
+      end <- if (i < length(hdr)) hdr[i + 1L] - 1L else nrow(tbl)
+      rows <- (h + 1L):end
+      rows <- rows[!is.na(c1[rows]) & !is.na(c2[rows])]
+      if (length(rows)) out[[key]] <- stats::setNames(trimws(c2[rows]), trimws(c1[rows]))
+    }
+  }
+  out
+}
+
 # Resolve a record-layout table from a spreadsheet/data.frame, finding the header
 # row that carries the variable-name column when `skip` is not given.
 .qsr_read_layout_table <- function(layout, sheet, skip, col_var) {
@@ -724,6 +754,13 @@ qsr_read_fwf <- function(path,
 #'   Defaults match the INE EPA layout (label from `"Descripción"`).
 #'   `col_pos`/`col_dec`/`col_label` are optional: positions fall back to the
 #'   cumulative sum of widths, decimals to 0, labels to none.
+#' @param col_valkey Layout column naming, per variable, the value-code table it
+#'   uses (the INE "Diccionario de la variable" key, e.g. `TSEXO`). Used with a
+#'   column whose name contains "hoja" (the sheet holding that table) to attach
+#'   value labels. Default matches the INE EPA layout.
+#' @param value_labels Logical. When the layout is a spreadsheet, parse its code
+#'   tables and attach value labels (haven-labelled columns) so categories carry
+#'   their meaning. Needs the `haven` package. Default TRUE.
 #' @param apply_decimals Logical. Divide numeric fields by `10^decimals` (INE
 #'   fixed-width stores implied decimals without a point). Default TRUE.
 #' @param n_rows Integer or NULL. Max data rows to read.
@@ -743,6 +780,8 @@ qsr_read_layout <- function(data, layout, sheet = 1, skip = NULL,
                             col_type = "Tipo", col_dec = "Decimales",
                             col_pos = "Posición",
                             col_label = "Descripción",
+                            col_valkey = "Diccionario de la variable",
+                            value_labels = TRUE,
                             apply_decimals = TRUE, n_rows = NULL,
                             name = "data", register = TRUE) {
   lay <- .qsr_read_layout_table(layout, sheet, skip, col_var)
@@ -784,8 +823,34 @@ qsr_read_layout <- function(data, layout, sheet = 1, skip = NULL,
     }
     df[[i]] <- x
   }
+
+  # Value labels: the INE layout references, per variable, a value-code table
+  # (a key in `col_valkey`) living in a "Tablas" sheet (a column whose name
+  # contains "hoja"). Parse those sheets and attach the code->label maps as
+  # haven-labelled columns, so categories carry their meaning downstream.
+  n_vl <- 0L
+  sheet_col <- grep("hoja", names(lay), value = TRUE)[1]
+  if (value_labels && !is.data.frame(layout) && col_valkey %in% names(lay) &&
+      !is.na(sheet_col) && requireNamespace("haven", quietly = TRUE)) {
+    keys   <- trimws(as.character(lay[[col_valkey]]))
+    sheets <- trimws(as.character(lay[[sheet_col]]))
+    vtabs  <- .qsr_parse_value_tables(layout, sheets)
+    for (i in seq_along(v)) {
+      k <- keys[i]
+      if (is.na(k) || !nzchar(k) || is.null(vtabs[[k]])) next
+      tab <- vtabs[[k]]                       # names = code, values = label
+      x   <- df[[i]]
+      codes <- if (is.numeric(x)) suppressWarnings(as.numeric(names(tab))) else as.character(names(tab))
+      labs  <- stats::setNames(codes, unname(tab))   # haven: names = label, value = code
+      ok    <- !is.na(codes) & !duplicated(codes)
+      if (!any(ok)) next
+      df[[i]] <- haven::labelled(x, labels = labs[ok], label = attr(x, "label"))
+      n_vl <- n_vl + 1L
+    }
+  }
+
   cli::cli_alert_success(
-    "Applied layout: {.val {ncol(df)}} named/typed columns over {.val {nrow(df)}} rows."
+    "Applied layout: {.val {ncol(df)}} named/typed columns over {.val {nrow(df)}} rows{if (n_vl > 0) sprintf(', %d with value labels', n_vl) else ''}."
   )
   if (register) qsr_data(df, name = name)
   invisible(df)
