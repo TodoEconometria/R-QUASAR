@@ -101,6 +101,23 @@ test_that("mean CI uses the design t quantile (degf), matching survey::confint",
   expect_equal(out$ci_high[1], ref[1, 2], tolerance = 1e-6)
 })
 
+test_that("replicate-weight design (svrepdesign) matches survey and feeds tabulate", {
+  skip_if_not_installed("survey")
+  set.seed(1); n <- 300
+  d <- data.frame(y = rbinom(n, 1, 0.4), w = runif(n, 0.5, 4))
+  R <- 20
+  for (k in seq_len(R)) d[[paste0("rw", k)]] <- d$w * rexp(n)
+  rwn <- paste0("rw", seq_len(R))
+  des <- survey::svrepdesign(data = d, repweights = d[rwn], weights = d$w,
+                             type = "bootstrap", combined.weights = TRUE)
+  ref <- survey::svymean(~y, des)
+
+  dz <- qsr_svydesign(data = d, weights = "w", repweights = rwn, rep_type = "bootstrap")
+  expect_s3_class(dz, "svyrep.design")
+  out <- qsr_tabulate(data = d, measure = "y", stat = "mean", se = TRUE)
+  expect_equal(out$se[1], as.numeric(survey::SE(ref)), tolerance = 1e-8)
+})
+
 test_that("domain estimates on a subpopulation with full-design variance", {
   skip_if_not_installed("survey")
   d <- make_survey()

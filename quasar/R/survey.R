@@ -508,23 +508,37 @@ qsr_decision_log <- function(id,
 #' errors, confidence intervals and design effects (Taylor linearization) instead
 #' of naive weighted point estimates. Stratification, clustering (PSUs) and the
 #' finite-population correction are honoured — the difference between a headline
-#' number and a number you can put a confidence interval on in a paper. For a
-#' replicate-weight design (BRR/jackknife/bootstrap) build one with
-#' [survey::svrepdesign()] and pass it straight to `design=` in [qsr_tabulate()].
+#' number and a number you can put a confidence interval on in a paper. When the
+#' provider ships **replicate weights** (BRR/jackknife/bootstrap), pass them via
+#' `repweights` and a `svrepdesign` is built instead; either design is consumed
+#' the same way by [qsr_tabulate()] and [qsr_model()].
 #'
 #' @param data A data.frame, or NULL to use the registered context data.
 #' @param ids Cluster/PSU identifiers: a column name, a formula (e.g. `~psu`), or
 #'   `~1` for no clustering (independent sampling). Default `~1`.
 #' @param strata Stratification variable: a column name, a formula, or NULL.
 #' @param weights Survey weight: a column name or a formula. Required — a design
-#'   without weights is not a survey.
+#'   without weights is not a survey. With `repweights`, this is the full-sample
+#'   weight.
 #' @param fpc Finite population correction: a column name, a formula, or NULL.
 #' @param nest Logical. Relabel PSU ids within strata (the safe choice for nested
 #'   survey ids such as EPA/ENAHO). Default TRUE.
 #' @param register Logical. Store the design in the context so a later
 #'   `qsr_tabulate(se = TRUE)` / `qsr_model(design = TRUE)` reuses it. Default TRUE.
+#' @param repweights Replicate-weight columns: a formula (`~rw1 + rw2 + ...`), a
+#'   character vector of column names, or a single regex string matching them. If
+#'   given, a [survey::svrepdesign()] is built and `ids`/`strata`/`fpc`/`nest` are
+#'   ignored. Default NULL (Taylor design).
+#' @param rep_type Replicate-weight type when `repweights` is given: one of
+#'   `"JKn"`, `"JK1"`, `"BRR"`, `"bootstrap"`, `"Fay"`, `"other"`. Default `"JKn"`.
+#' @param scale,rscales Scaling constants passed to [survey::svrepdesign()]. NULL
+#'   lets `survey` infer them for the standard types.
+#' @param combined_weights Logical. Are the replicate weights already the full
+#'   weights (TRUE) or adjustment factors (FALSE)? Passed to `svrepdesign`.
+#' @param rho Fay's coefficient, for `rep_type = "Fay"`.
 #'
-#' @return A `survey.design` object (invisibly).
+#' @return A `survey.design` (Taylor) or `svyrep.design` (replicate) object,
+#'   invisibly.
 #'
 #' @examples
 #' \dontrun{
@@ -536,7 +550,11 @@ qsr_decision_log <- function(id,
 #'
 #' @export
 qsr_svydesign <- function(data = NULL, ids = ~1, strata = NULL, weights = NULL,
-                          fpc = NULL, nest = TRUE, register = TRUE) {
+                          fpc = NULL, nest = TRUE, register = TRUE,
+                          repweights = NULL,
+                          rep_type = c("JKn", "JK1", "BRR", "bootstrap", "Fay", "other"),
+                          scale = NULL, rscales = NULL,
+                          combined_weights = TRUE, rho = NULL) {
   if (!requireNamespace("survey", quietly = TRUE)) {
     cli::cli_abort(c(
       "Design-based inference needs the {.pkg survey} package.",
@@ -557,6 +575,28 @@ qsr_svydesign <- function(data = NULL, ids = ~1, strata = NULL, weights = NULL,
     if (inherits(x, "formula")) return(x)
     stats::reformulate(x)
   }
+
+  # Replicate-weight design (BRR/jackknife/bootstrap) when replicate weight
+  # columns are supplied; otherwise a Taylor-linearization design. Both register
+  # under the same slot and are consumed identically by qsr_tabulate(se = TRUE).
+  if (!is.null(repweights)) {
+    rep_type <- match.arg(rep_type)
+    # repweights: a formula, a vector of column names, or a single regex string.
+    rw <- if (inherits(repweights, "formula")) repweights
+          else if (length(repweights) > 1L) stats::reformulate(repweights)
+          else repweights
+    d <- survey::svrepdesign(
+      data = df, repweights = rw, weights = asf(weights),
+      type = rep_type, combined.weights = combined_weights,
+      scale = scale, rscales = rscales, rho = rho
+    )
+    if (register) .qsr_context$set("design", d)
+    cli::cli_alert_success(
+      "Replicate-weight design over {.val {nrow(df)}} obs {.emph ({rep_type})}."
+    )
+    return(invisible(d))
+  }
+
   d <- survey::svydesign(
     ids = asf(ids) %||% ~1, strata = asf(strata),
     weights = asf(weights), fpc = asf(fpc), data = df, nest = nest

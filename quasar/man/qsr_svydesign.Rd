@@ -11,7 +11,13 @@ qsr_svydesign(
   weights = NULL,
   fpc = NULL,
   nest = TRUE,
-  register = TRUE
+  register = TRUE,
+  repweights = NULL,
+  rep_type = c("JKn", "JK1", "BRR", "bootstrap", "Fay", "other"),
+  scale = NULL,
+  rscales = NULL,
+  combined_weights = TRUE,
+  rho = NULL
 )
 }
 \arguments{
@@ -23,7 +29,8 @@ qsr_svydesign(
 \item{strata}{Stratification variable: a column name, a formula, or NULL.}
 
 \item{weights}{Survey weight: a column name or a formula. Required — a design
-without weights is not a survey.}
+without weights is not a survey. With \code{repweights}, this is the full-sample
+weight.}
 
 \item{fpc}{Finite population correction: a column name, a formula, or NULL.}
 
@@ -32,18 +39,36 @@ survey ids such as EPA/ENAHO). Default TRUE.}
 
 \item{register}{Logical. Store the design in the context so a later
 \code{qsr_tabulate(se = TRUE)} / \code{qsr_model(design = TRUE)} reuses it. Default TRUE.}
+
+\item{repweights}{Replicate-weight columns: a formula (\code{~rw1 + rw2 + ...}), a
+character vector of column names, or a single regex string matching them. If
+given, a \code{\link[survey:svrepdesign]{survey::svrepdesign()}} is built and \code{ids}/\code{strata}/\code{fpc}/\code{nest} are
+ignored. Default NULL (Taylor design).}
+
+\item{rep_type}{Replicate-weight type when \code{repweights} is given: one of
+\code{"JKn"}, \code{"JK1"}, \code{"BRR"}, \code{"bootstrap"}, \code{"Fay"}, \code{"other"}. Default \code{"JKn"}.}
+
+\item{scale, rscales}{Scaling constants passed to \code{\link[survey:svrepdesign]{survey::svrepdesign()}}. NULL
+lets \code{survey} infer them for the standard types.}
+
+\item{combined_weights}{Logical. Are the replicate weights already the full
+weights (TRUE) or adjustment factors (FALSE)? Passed to \code{svrepdesign}.}
+
+\item{rho}{Fay's coefficient, for \code{rep_type = "Fay"}.}
 }
 \value{
-A \code{survey.design} object (invisibly).
+A \code{survey.design} (Taylor) or \code{svyrep.design} (replicate) object,
+invisibly.
 }
 \description{
 Wraps \code{\link[survey:svydesign]{survey::svydesign()}} so QUASAR can produce \strong{design-based} standard
 errors, confidence intervals and design effects (Taylor linearization) instead
 of naive weighted point estimates. Stratification, clustering (PSUs) and the
 finite-population correction are honoured — the difference between a headline
-number and a number you can put a confidence interval on in a paper. For a
-replicate-weight design (BRR/jackknife/bootstrap) build one with
-\code{\link[survey:svrepdesign]{survey::svrepdesign()}} and pass it straight to \verb{design=} in \code{\link[=qsr_tabulate]{qsr_tabulate()}}.
+number and a number you can put a confidence interval on in a paper. When the
+provider ships \strong{replicate weights} (BRR/jackknife/bootstrap), pass them via
+\code{repweights} and a \code{svrepdesign} is built instead; either design is consumed
+the same way by \code{\link[=qsr_tabulate]{qsr_tabulate()}} and \code{\link[=qsr_model]{qsr_model()}}.
 }
 \examples{
 \dontrun{
