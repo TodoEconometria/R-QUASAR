@@ -75,3 +75,40 @@ test_that("qsr_svydesign requires weights", {
   d <- make_survey()
   expect_error(qsr_svydesign(data = d), "weights")
 })
+
+test_that("prop CIs are logit (bounded in [0,1] and asymmetric)", {
+  skip_if_not_installed("survey")
+  d <- make_survey()
+  d$rare <- rbinom(nrow(d), 1, 0.03)     # prevalence near 0 -> Wald would underflow
+  out <- qsr_tabulate(data = d, by = "rare", stat = "prop", se = TRUE,
+                      strata = "strat", weight = "w")
+  expect_true(all(out$ci_low >= 0 & out$ci_high <= 1))
+  expect_true(all(out$ci_low < out$estimate & out$estimate < out$ci_high))
+  # asymmetric around the point estimate (logit, not Wald)
+  asym <- abs((out$ci_high - out$estimate) - (out$estimate - out$ci_low))
+  expect_true(any(asym > 1e-8))
+})
+
+test_that("mean CI uses the design t quantile (degf), matching survey::confint", {
+  skip_if_not_installed("survey")
+  d <- make_survey()
+  des <- survey::svydesign(ids = ~1, strata = ~strat, weights = ~w, data = d)
+  sm  <- survey::svymean(~val, des)
+  ref <- suppressWarnings(stats::confint(sm, df = survey::degf(des)))
+  out <- qsr_tabulate(data = d, measure = "val", stat = "mean", se = TRUE,
+                      strata = "strat", weight = "w")
+  expect_equal(out$ci_low[1],  ref[1, 1], tolerance = 1e-6)
+  expect_equal(out$ci_high[1], ref[1, 2], tolerance = 1e-6)
+})
+
+test_that("domain estimates on a subpopulation with full-design variance", {
+  skip_if_not_installed("survey")
+  d <- make_survey()
+  des <- survey::svydesign(ids = ~1, strata = ~strat, weights = ~w, data = d)
+  ref <- survey::svymean(~y, subset(des, grp == "x"))
+  out <- qsr_tabulate(data = d, measure = "y", stat = "mean", se = TRUE,
+                      strata = "strat", weight = "w", domain = grp == "x")
+  expect_equal(out$estimate[1], as.numeric(coef(ref)), tolerance = 1e-9)
+  expect_equal(out$se[1], as.numeric(survey::SE(ref)), tolerance = 1e-9)
+  expect_equal(out$n[1], sum(d$grp == "x"))
+})

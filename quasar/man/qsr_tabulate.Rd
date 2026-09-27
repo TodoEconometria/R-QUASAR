@@ -18,7 +18,8 @@ qsr_tabulate(
   ids = ~1,
   fpc = NULL,
   ci_level = 0.95,
-  deff = TRUE
+  deff = TRUE,
+  domain = NULL
 )
 }
 \arguments{
@@ -54,10 +55,18 @@ registered by \code{\link[=qsr_svydesign]{qsr_svydesign()}} is reused.}
 \item{strata, ids, fpc}{Column names (or formulas) to build the design inline
 when \code{se = TRUE} and no \code{design} is supplied. \code{ids} defaults to \code{~1}.}
 
-\item{ci_level}{Confidence level for the interval. Default 0.95.}
+\item{ci_level}{Confidence level for the interval. Default 0.95. Intervals use
+the design degrees of freedom (\code{t}, not \code{z}); for \code{stat = "prop"} they use a
+logit (Rao-Scott) transform, so they stay inside \code{[0, 1]} and are asymmetric
+near 0/1 (where survey prevalences typically sit).}
 
 \item{deff}{Logical. Include the design effect column when \code{se = TRUE}.
 Default TRUE.}
+
+\item{domain}{Optional unquoted expression to restrict to a subpopulation
+(e.g. \code{domain = sexo == 1}) when \code{se = TRUE}. The variance is computed
+against the full design (correct domain SE), not a design re-declared on the
+filtered rows. Ignored on the fast path.}
 }
 \value{
 A data.frame with the \code{by} columns, \code{n} (unweighted row count per

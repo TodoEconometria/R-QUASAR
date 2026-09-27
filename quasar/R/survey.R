@@ -600,9 +600,16 @@ qsr_svydesign <- function(data = NULL, ids = ~1, strata = NULL, weights = NULL,
 #'   registered by [qsr_svydesign()] is reused.
 #' @param strata,ids,fpc Column names (or formulas) to build the design inline
 #'   when `se = TRUE` and no `design` is supplied. `ids` defaults to `~1`.
-#' @param ci_level Confidence level for the interval. Default 0.95.
+#' @param ci_level Confidence level for the interval. Default 0.95. Intervals use
+#'   the design degrees of freedom (`t`, not `z`); for `stat = "prop"` they use a
+#'   logit (Rao-Scott) transform, so they stay inside `[0, 1]` and are asymmetric
+#'   near 0/1 (where survey prevalences typically sit).
 #' @param deff Logical. Include the design effect column when `se = TRUE`.
 #'   Default TRUE.
+#' @param domain Optional unquoted expression to restrict to a subpopulation
+#'   (e.g. `domain = sexo == 1`) when `se = TRUE`. The variance is computed
+#'   against the full design (correct domain SE), not a design re-declared on the
+#'   filtered rows. Ignored on the fast path.
 #'
 #' @return A data.frame with the `by` columns, `n` (unweighted row count per
 #'   group) and `estimate` (the weighted statistic). When `se = TRUE` it also
@@ -633,7 +640,8 @@ qsr_tabulate <- function(data = NULL,
                          ids = ~1,
                          fpc = NULL,
                          ci_level = 0.95,
-                         deff = TRUE) {
+                         deff = TRUE,
+                         domain = NULL) {
   stat <- match.arg(stat)
 
   if (is.null(data)) {
@@ -681,7 +689,8 @@ qsr_tabulate <- function(data = NULL,
   # the default fast path below stays dependency-free and quick.
   if (se) {
     return(.qsr_tabulate_svy(df, by, weight, measure, stat, design,
-                             strata, ids, fpc, ci_level, deff, digits))
+                             strata, ids, fpc, ci_level, deff, digits,
+                             substitute(domain), parent.frame()))
   }
 
   w <- if (is.null(weight)) rep(1, nrow(df)) else suppressWarnings(as.numeric(df[[weight]]))
@@ -729,7 +738,8 @@ qsr_tabulate <- function(data = NULL,
 # columns, unweighted n, estimate, se, ci_low/ci_high and (optionally) deff.
 # Kept out of qsr_tabulate() so the fast path carries no survey dependency.
 .qsr_tabulate_svy <- function(df, by, weight, measure, stat, design,
-                              strata, ids, fpc, ci_level, deff, digits) {
+                              strata, ids, fpc, ci_level, deff, digits,
+                              domain_expr = NULL, eval_env = parent.frame()) {
   if (!requireNamespace("survey", quietly = TRUE)) {
     cli::cli_abort(c(
       "{.code se = TRUE} needs the {.pkg survey} package.",
@@ -755,8 +765,22 @@ qsr_tabulate <- function(data = NULL,
       )
     }
   }
+  # Domain / subpopulation estimation: restrict via subset() so the variance is
+  # computed against the FULL design (correct domain SE), not a re-declared design
+  # on the filtered rows. survey::subset.survey.design evaluates in design$variables.
+  if (!is.null(domain_expr)) {
+    design <- eval(bquote(subset(design, .(domain_expr))))
+    if (nrow(design$variables) == 0L) {
+      cli::cli_abort("{.arg domain} filter matched 0 rows.")
+    }
+    cli::cli_alert_info("Domain restricted to {.val {nrow(design$variables)}} rows.")
+  }
   vars <- design$variables
-  z <- stats::qnorm(1 - (1 - ci_level) / 2)
+  # CI critical value uses the design degrees of freedom (t), not a normal z:
+  # df = #PSUs - #strata. Falls back to a large df if survey::degf is unavailable.
+  df_design <- tryCatch(survey::degf(design), error = function(e) Inf)
+  if (!is.finite(df_design) || df_design < 1) df_design <- Inf
+  z <- stats::qt(1 - (1 - ci_level) / 2, df = df_design)
 
   # Unweighted n per group (sample size, not population).
   n_tab <- if (is.null(by)) {
@@ -805,8 +829,20 @@ qsr_tabulate <- function(data = NULL,
     }
   }
 
-  out$ci_low  <- out$estimate - z * out$se
-  out$ci_high <- out$estimate + z * out$se
+  # Confidence intervals. Proportions use a logit (Rao-Scott) transform so the
+  # interval is asymmetric and bounded in [0, 1] -- the Wald z*se interval is
+  # miscalibrated near 0/1, exactly where survey prevalences (e.g. coca) sit.
+  # Means/sums/counts keep the symmetric interval on the estimate scale.
+  if (stat == "prop") {
+    p <- out$estimate; s <- out$se
+    edge <- !is.finite(p) | p <= 0 | p >= 1 | !is.finite(s) | s <= 0
+    lg   <- s / (p * (1 - p))                       # SE on the logit scale (delta)
+    out$ci_low  <- ifelse(edge, pmax(0, p - z * s), stats::plogis(stats::qlogis(p) - z * lg))
+    out$ci_high <- ifelse(edge, pmin(1, p + z * s), stats::plogis(stats::qlogis(p) + z * lg))
+  } else {
+    out$ci_low  <- out$estimate - z * out$se
+    out$ci_high <- out$estimate + z * out$se
+  }
   if (!is.null(digits)) {
     for (cc in c("estimate", "se", "ci_low", "ci_high")) out[[cc]] <- round(out[[cc]], digits)
     if ("deff" %in% names(out)) out$deff <- round(out$deff, 2)
