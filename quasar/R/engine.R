@@ -678,6 +678,120 @@ qsr_read_fwf <- function(path,
 }
 
 
+# Resolve a record-layout table from a spreadsheet/data.frame, finding the header
+# row that carries the variable-name column when `skip` is not given.
+.qsr_read_layout_table <- function(layout, sheet, skip, col_var) {
+  if (is.data.frame(layout)) return(as.data.frame(layout))
+  if (!requireNamespace("readxl", quietly = TRUE)) {
+    cli::cli_abort(c("Reading an Excel layout needs the {.pkg readxl} package.",
+                     "i" = "Install it with {.code install.packages(\"readxl\")}."))
+  }
+  if (!is.null(skip)) {
+    return(as.data.frame(readxl::read_excel(layout, sheet = sheet, skip = skip)))
+  }
+  for (s in 0:6) {
+    d <- tryCatch(readxl::read_excel(layout, sheet = sheet, skip = s),
+                  error = function(e) NULL)
+    if (!is.null(d) && col_var %in% names(d)) return(as.data.frame(d))
+  }
+  cli::cli_abort(c(
+    "Could not find the header row with column {.val {col_var}} in the layout.",
+    "i" = "Pass {.arg skip} (rows to skip) or {.arg col_var} explicitly."))
+}
+
+#' Read a fixed-width file using an INE-style record layout
+#'
+#' Fixed-width survey files (INE "diseño de registro": EPA, EPF) store no column
+#' names or labels in the data — those live in a separate layout spreadsheet that
+#' lists, per variable, its name, field width, type and (often) start position and
+#' a dictionary label. This reads that layout and applies it to the data file:
+#' positions and names come from the layout, numeric fields are cast (with implied
+#' decimals), and each column carries its dictionary label. It is the bridge that
+#' [qsr_read()] cannot cross, because the metadata is out of band.
+#'
+#' @param data Character. Path to the fixed-width data file.
+#' @param layout An `.xlsx` path (read with readxl) or a data.frame: the record
+#'   layout, one row per variable.
+#' @param sheet Sheet name or index of the layout when it is a spreadsheet.
+#'   Default 1.
+#' @param skip Rows to skip above the layout header, or NULL (default) to detect
+#'   the header row that carries `col_var`.
+#' @param encoding Data file encoding. Survey fixed-width files are usually
+#'   `"latin1"` (Spanish INE) or `"cp850"`. Default `"latin1"`.
+#' @param col_var,col_width,col_type,col_dec,col_pos,col_label Column names in the
+#'   layout for the variable name, field width, type (`A`/`N`), decimal count,
+#'   start position and the human-readable description used as the column label.
+#'   Defaults match the INE EPA layout (label from `"Descripción"`).
+#'   `col_pos`/`col_dec`/`col_label` are optional: positions fall back to the
+#'   cumulative sum of widths, decimals to 0, labels to none.
+#' @param apply_decimals Logical. Divide numeric fields by `10^decimals` (INE
+#'   fixed-width stores implied decimals without a point). Default TRUE.
+#' @param n_rows Integer or NULL. Max data rows to read.
+#' @param name,register Context name and whether to register the result.
+#'
+#' @return A data.frame (invisibly): named, typed, labelled columns.
+#'
+#' @examples
+#' \dontrun{
+#' qsr_read_layout("md_EPA_2021T4.txt", "dr_EPA_2021.xlsx", sheet = "Diseño")
+#' }
+#'
+#' @export
+qsr_read_layout <- function(data, layout, sheet = 1, skip = NULL,
+                            encoding = "latin1",
+                            col_var = "Variable", col_width = "Longitud",
+                            col_type = "Tipo", col_dec = "Decimales",
+                            col_pos = "Posición",
+                            col_label = "Descripción",
+                            apply_decimals = TRUE, n_rows = NULL,
+                            name = "data", register = TRUE) {
+  lay <- .qsr_read_layout_table(layout, sheet, skip, col_var)
+  if (!col_var %in% names(lay) || !col_width %in% names(lay)) {
+    cli::cli_abort("Layout must have at least {.val {col_var}} and {.val {col_width}} columns.")
+  }
+  v <- trimws(as.character(lay[[col_var]]))
+  width <- suppressWarnings(as.integer(lay[[col_width]]))
+  # A real variable row has a name and a positive integer width; drop everything
+  # else (title/notes/continuation rows the INE layout interleaves).
+  keep <- !is.na(v) & nzchar(v) & !is.na(width) & width > 0
+  n_drop <- sum(!keep)
+  lay <- lay[keep, , drop = FALSE]; v <- v[keep]; width <- width[keep]
+  if (!length(v)) cli::cli_abort("No variable rows found in the layout.")
+  if (n_drop > 0) cli::cli_alert_info("Skipped {.val {n_drop}} non-variable row{?s} in the layout.")
+  pos <- if (col_pos %in% names(lay)) suppressWarnings(as.integer(lay[[col_pos]])) else NULL
+  if (is.null(pos) || any(is.na(pos))) {
+    ends <- cumsum(width); starts <- ends - width + 1L      # positions from widths
+  } else {
+    starts <- pos; ends <- pos + width - 1L                 # explicit positions
+  }
+  positions <- Map(function(a, b) c(a, b), starts, ends)
+
+  df <- qsr_read_fwf(data, positions = positions, col_names = v,
+                     encoding = encoding, n_rows = n_rows, register = FALSE)
+
+  typ <- toupper(substr(as.character(lay[[col_type]] %||% rep("A", length(v))), 1, 1))
+  dec <- if (col_dec %in% names(lay)) suppressWarnings(as.integer(lay[[col_dec]])) else rep(NA_integer_, length(v))
+  lab <- if (col_label %in% names(lay)) as.character(lay[[col_label]]) else rep(NA_character_, length(v))
+  for (i in seq_along(v)) {
+    x <- df[[i]]
+    if (identical(typ[i], "N")) {
+      x[x == ""] <- NA
+      x <- suppressWarnings(as.numeric(x))
+      if (apply_decimals && !is.na(dec[i]) && dec[i] > 0) x <- x / 10^dec[i]
+    }
+    if (!is.na(lab[i]) && nzchar(lab[i])) {
+      attr(x, "label") <- trimws(sub("[\r\n].*$", "", lab[i]))   # first line = the label
+    }
+    df[[i]] <- x
+  }
+  cli::cli_alert_success(
+    "Applied layout: {.val {ncol(df)}} named/typed columns over {.val {nrow(df)}} rows."
+  )
+  if (register) qsr_data(df, name = name)
+  invisible(df)
+}
+
+
 #' Stream a large delimited file to Parquet (constant memory)
 #'
 #' Converts a big CSV/text file to Parquet using the Polars streaming engine,
