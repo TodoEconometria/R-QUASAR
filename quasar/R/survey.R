@@ -609,6 +609,85 @@ qsr_svydesign <- function(data = NULL, ids = ~1, strata = NULL, weights = NULL,
 }
 
 
+#' Recode survey missing codes to NA
+#'
+#' Survey microdata encode "missing" in ways base R does not recognise: sentinel
+#' numbers (99, -9, -8), out-of-range codes, blank/placeholder strings, and — in
+#' SPSS/Stata files — declared user-missing values. `qsr_read()` already turns
+#' *declared* SPSS user-missing into NA; this helper handles the rest, so a column
+#' is numeric-clean before it enters a model or a weighted tabulation.
+#'
+#' @param data A data.frame, or NULL to use the registered context data.
+#' @param values Vector of sentinel values to set to NA (e.g. `c(99, -9)`).
+#'   Matched numerically in numeric columns, as strings elsewhere.
+#' @param ranges List of numeric `c(lo, hi)` pairs; values in `[lo, hi]` become NA
+#'   (e.g. `list(c(90, 99))`). Numeric columns only.
+#' @param na_strings Character values (trimmed) to set to NA in character/factor
+#'   columns (e.g. `c("", ".", "N/A")`).
+#' @param cols Columns to act on. NULL (default) means every column.
+#' @param haven_missing Logical. Also apply [haven::zap_missing()] to convert any
+#'   still-tagged SPSS/Stata user-missing to NA. Default TRUE (no-op without haven
+#'   or when nothing is tagged).
+#' @param name,register Context name and whether to register the result.
+#'
+#' @return The data.frame with the matched values set to NA (invisibly).
+#'
+#' @examples
+#' \dontrun{
+#' qsr_read("ENAHO.dta")
+#' qsr_na(values = c(99, -9), ranges = list(c(9000, 9999)), na_strings = c("", "."))
+#' }
+#'
+#' @export
+qsr_na <- function(data = NULL, values = NULL, ranges = NULL, na_strings = NULL,
+                   cols = NULL, haven_missing = TRUE, name = "data",
+                   register = TRUE) {
+  data <- data %||% .qsr_context$get_data()
+  if (is.null(data)) {
+    cli::cli_abort(c("No data.", "i" = "Pass {.arg data} or register with {.fn qsr_data}."))
+  }
+  df <- as.data.frame(data)
+  target <- if (is.null(cols)) names(df) else {
+    miss <- setdiff(cols, names(df))
+    if (length(miss)) cli::cli_abort("Column(s) not found: {.val {miss}}")
+    cols
+  }
+  count_na <- function(cols) sum(vapply(df[cols], function(x) sum(is.na(x)), 0L))
+  n_before <- count_na(target)
+
+  if (haven_missing && requireNamespace("haven", quietly = TRUE)) {
+    df[target] <- lapply(df[target], function(x)
+      if (inherits(x, "haven_labelled")) haven::zap_missing(x) else x)
+  }
+  recode1 <- function(x) {
+    if (!is.null(values)) {
+      if (is.numeric(x)) {
+        x[x %in% suppressWarnings(as.numeric(values))] <- NA
+      } else {
+        x[as.character(x) %in% as.character(values)] <- NA
+      }
+    }
+    if (!is.null(ranges) && is.numeric(x)) {
+      for (rg in ranges) x[!is.na(x) & x >= rg[1] & x <= rg[2]] <- NA
+    }
+    if (!is.null(na_strings) && (is.character(x) || is.factor(x))) {
+      lev <- as.character(x)
+      lev[trimws(lev) %in% na_strings] <- NA
+      x <- if (is.factor(x)) factor(lev) else lev
+    }
+    x
+  }
+  df[target] <- lapply(df[target], recode1)
+
+  n_after <- count_na(target)
+  cli::cli_alert_success(
+    "Recoded {.val {n_after - n_before}} value{?s} to NA across {.val {length(target)}} column{?s}."
+  )
+  if (register) qsr_data(df, name = name)
+  invisible(df)
+}
+
+
 #' Weighted survey tabulation
 #'
 #' The core estimation primitive for survey microdata: weighted counts,
