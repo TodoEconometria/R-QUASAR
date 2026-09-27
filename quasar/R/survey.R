@@ -688,6 +688,84 @@ qsr_na <- function(data = NULL, values = NULL, ranges = NULL, na_strings = NULL,
 }
 
 
+#' Codebook of a survey dataset
+#'
+#' Describes each variable the way a data appendix must: its label, type, missing
+#' rate, cardinality and — crucially for survey microdata — its value labels
+#' (from haven-labelled columns) or numeric range. It reads the labels the survey
+#' already carries; it does not invent them. Feed the result to [qsr_table()] for
+#' a publication-ready codebook.
+#'
+#' @param data A data.frame/tibble, or NULL to use the registered context data.
+#'   Value labels are read from haven-labelled columns when present.
+#' @param cols Columns to document. NULL (default) means every column.
+#' @param max_values Integer. How many value labels / distinct values to list per
+#'   variable before truncating with an ellipsis. Default 6.
+#' @param name,register Context name and whether to register the codebook.
+#'
+#' @return A data.frame with one row per variable: `variable`, `label`, `type`,
+#'   `n`, `n_missing`, `pct_missing`, `n_unique` and `values` (invisibly).
+#'
+#' @examples
+#' \dontrun{
+#' qsr_read("ENAHO.sav")          # keeps haven value labels
+#' qsr_codebook()
+#' }
+#'
+#' @export
+qsr_codebook <- function(data = NULL, cols = NULL, max_values = 6,
+                         name = "codebook", register = FALSE) {
+  data <- data %||% .qsr_context$get_data()
+  if (is.null(data)) {
+    cli::cli_abort(c("No data.", "i" = "Pass {.arg data} or register with {.fn qsr_data}."))
+  }
+  target <- if (is.null(cols)) names(data) else {
+    miss <- setdiff(cols, names(data))
+    if (length(miss)) cli::cli_abort("Column(s) not found: {.val {miss}}")
+    cols
+  }
+  fmtn <- function(v) formatC(v, format = "g", digits = 4)
+  trunc_join <- function(v) {
+    v <- as.character(v)
+    if (length(v) > max_values) v <- c(v[seq_len(max_values)], "…")
+    paste(v, collapse = "; ")
+  }
+  describe1 <- function(x) {
+    lab <- attr(x, "label", exact = TRUE)
+    lab <- if (is.null(lab)) NA_character_ else as.character(lab)[1]
+    vl  <- attr(x, "labels", exact = TRUE)     # haven named value labels
+    typ <- if (!is.null(vl) || inherits(x, "haven_labelled")) "labelled"
+           else if (is.factor(x)) "factor"
+           else if (is.numeric(x)) "numeric"
+           else if (is.character(x)) "character"
+           else if (inherits(x, c("Date", "POSIXct"))) "date"
+           else class(x)[1]
+    n  <- length(x); nm <- sum(is.na(x))
+    nu <- length(unique(x[!is.na(x)]))
+    vals <- if (!is.null(vl)) {
+      trunc_join(paste0(vl, "=", names(vl)))
+    } else if (is.factor(x)) {
+      trunc_join(levels(x))
+    } else if (is.numeric(x) && any(is.finite(x))) {
+      sprintf("[%s, %s] mean %s", fmtn(min(x, na.rm = TRUE)),
+              fmtn(max(x, na.rm = TRUE)), fmtn(mean(x, na.rm = TRUE)))
+    } else {
+      trunc_join(unique(x[!is.na(x)]))
+    }
+    data.frame(type = typ, label = lab, n = n, n_missing = nm,
+               pct_missing = round(100 * nm / n, 1), n_unique = nu,
+               values = vals, stringsAsFactors = FALSE)
+  }
+  rows <- lapply(target, function(v) cbind(variable = v, describe1(data[[v]]),
+                                           stringsAsFactors = FALSE))
+  out <- do.call(rbind, rows)
+  rownames(out) <- NULL
+  cli::cli_alert_success("Codebook of {.val {length(target)}} variables.")
+  if (register) qsr_data(out, name = name)
+  invisible(out)
+}
+
+
 #' Weighted survey tabulation
 #'
 #' The core estimation primitive for survey microdata: weighted counts,
