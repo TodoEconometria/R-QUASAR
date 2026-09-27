@@ -10,6 +10,21 @@
   gains `design =`** for [survey::svyglm()] fits (a design-based LPM/GLM). This
   is what turns a weighted headline number into an estimate with a CI you can put
   in a paper. Point estimates and SEs are validated to match `survey::` exactly.
+* **Calibrated survey intervals and subpopulations.** `qsr_tabulate(se = TRUE)`
+  now builds confidence intervals on the design degrees of freedom (`t`, via
+  `survey::degf()`), and for `stat = "prop"` uses a logit (Rao-Scott) transform so
+  the interval stays inside `[0, 1]` and is asymmetric near 0/1 — where survey
+  prevalences live. New **`domain =`** argument estimates a subpopulation with the
+  correct full-design variance (via `subset()`). **`qsr_svydesign(repweights=)`**
+  builds a replicate-weight design (`survey::svrepdesign()`; BRR/jackknife/
+  bootstrap/Fay), consumed identically by `qsr_tabulate()`/`qsr_model()`.
+* **`qsr_na()`** recodes survey missing that base R misses — sentinel values
+  (99, -9), numeric ranges, blank/placeholder strings and any still-tagged
+  SPSS/Stata user-missing — to `NA`.
+* **`qsr_codebook()`** generates a data appendix from a dataset: per variable its
+  label, type, missing rate, cardinality and value labels (from haven-labelled
+  columns) or numeric range.
+* **`qsr_write()` writes dBase `.dbf`**, closing the last read/write asymmetry.
 * **`qsr_write()` — the write half of `qsr_read()`.** Exports a data.frame to the
   format implied by the extension: CSV, Parquet, SPSS (`.sav`), Stata (`.dta`),
   SAS transport (`.xpt`), Excel (`.xlsx`), JSON/NDJSON, Arrow/Feather, and native
