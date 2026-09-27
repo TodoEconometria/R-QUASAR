@@ -24,6 +24,10 @@
 * **`qsr_codebook()`** generates a data appendix from a dataset: per variable its
   label, type, missing rate, cardinality and value labels (from haven-labelled
   columns) or numeric range.
+* **`qsr_read_layout()`** applies an INE-style record layout (EPA/EPF "diseño de
+  registro" spreadsheet) to a fixed-width data file: names, field positions,
+  types, implied decimals and variable labels come from the layout, so a raw
+  fixed-width `.txt` reads as a named, typed, labelled data.frame.
 * **`qsr_write()` writes dBase `.dbf`**, closing the last read/write asymmetry.
 * **`qsr_write()` — the write half of `qsr_read()`.** Exports a data.frame to the
   format implied by the extension: CSV, Parquet, SPSS (`.sav`), Stata (`.dta`),
