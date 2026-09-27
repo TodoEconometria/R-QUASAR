@@ -47,6 +47,25 @@ test_that("qsr_write round-trips dBase .dbf", {
   expect_equal(trimws(as.character(back$grp)), d$grp)
 })
 
+test_that("qsr_write_fwf round-trips with qsr_read_fwf and aligns by type", {
+  d <- data.frame(id = c("A1", "B2"), edad = c(45, 7), stringsAsFactors = FALSE)
+  tf <- tempfile(fileext = ".txt")
+  qsr_write_fwf(d, tf, widths = c(2, 3))
+  expect_equal(readLines(tf), c("A1 45", "B2  7"))   # char left, numeric right
+  back <- qsr_read_fwf(tf, widths = c(2, 3), col_names = c("id", "edad"),
+                       register = FALSE)
+  expect_equal(back$id, d$id)
+  expect_equal(as.numeric(back$edad), d$edad)
+})
+
+test_that("qsr_write_fwf auto-sizes widths and errors on overflow", {
+  d <- data.frame(x = c("a", "bbb"), stringsAsFactors = FALSE)
+  tf <- tempfile(fileext = ".txt")
+  qsr_write_fwf(d, tf)                                # auto width = 3
+  expect_equal(nchar(readLines(tf)), c(3L, 3L))
+  expect_error(qsr_write_fwf(d, tempfile(), widths = 2), "wider")
+})
+
 test_that("qsr_write refuses .sas7bdat with a helpful message", {
   tf <- tempfile(fileext = ".sas7bdat")
   expect_error(qsr_write(rt_df(), tf), "sas7bdat|xpt")

@@ -857,6 +857,82 @@ qsr_read_layout <- function(data, layout, sheet = 1, skip = NULL,
 }
 
 
+#' Write a data.frame to a fixed-width file
+#'
+#' The write half of [qsr_read_fwf()]: lays each column out in a fixed byte width,
+#' with no separators — the positional format still required by some official
+#' pipelines and legacy systems. Numeric columns are right-aligned and everything
+#' else left-aligned by default; widths default to each column's longest value.
+#'
+#' @param data A data.frame, or NULL to use the registered context data.
+#' @param path Destination file.
+#' @param widths Integer vector of field widths, one per column, or NULL (default)
+#'   to use each column's longest value. A value longer than its width is an error
+#'   (fixed-width truncation would corrupt the record).
+#' @param align `"left"` or `"right"`, a single value or one per column, or NULL
+#'   (default) for numeric columns right-aligned and the rest left-aligned.
+#' @param pad Single padding character. Default `" "`.
+#' @param na String written for `NA`. Default `""` (blanks).
+#' @param encoding Output encoding. Default `"latin1"`.
+#'
+#' @return The path (invisibly).
+#'
+#' @examples
+#' \dontrun{
+#' qsr_write_fwf(df, "out.txt", widths = c(2, 3, 5))
+#' }
+#'
+#' @export
+qsr_write_fwf <- function(data = NULL, path, widths = NULL, align = NULL,
+                          pad = " ", na = "", encoding = "latin1") {
+  data <- data %||% .qsr_context$get_data()
+  if (is.null(data)) {
+    cli::cli_abort(c("No data to write.",
+                     "i" = "Pass {.arg data} or register with {.fn qsr_data}."))
+  }
+  df <- as.data.frame(data)
+  nc <- ncol(df)
+  if (nc == 0L) cli::cli_abort("Data has no columns.")
+
+  is_num <- unname(vapply(df, is.numeric, logical(1)))
+  strs <- lapply(seq_len(nc), function(j) {
+    s <- as.character(df[[j]]); s[is.na(s)] <- na; s
+  })
+  if (is.null(widths)) {
+    widths <- vapply(strs, function(s) max(c(0L, nchar(s))), integer(1))
+  } else {
+    widths <- as.integer(widths)
+    if (length(widths) != nc) {
+      cli::cli_abort("{.arg widths} has {length(widths)} values but there are {nc} columns.")
+    }
+  }
+  aln <- if (is.null(align)) ifelse(is_num, "right", "left")
+         else if (length(align) == 1L) rep(align, nc)
+         else align
+  aln <- unname(aln)
+  if (length(aln) != nc) cli::cli_abort("{.arg align} must be length 1 or {nc}.")
+
+  pad_col <- function(s, w, right) {
+    over <- nchar(s) > w
+    if (any(over)) {
+      cli::cli_abort("Value{?s} wider than the field width {.val {w}} in column {?/}.")
+    }
+    fill <- strrep(pad, w - nchar(s))
+    if (identical(right, "right")) paste0(fill, s) else paste0(s, fill)
+  }
+  cols <- lapply(seq_len(nc), function(j) pad_col(strs[[j]], widths[j], aln[j]))
+  lines <- do.call(paste0, cols)
+
+  con <- file(path, "w", encoding = encoding)
+  on.exit(close(con), add = TRUE)
+  writeLines(lines, con)
+  cli::cli_alert_success(
+    "Wrote {.val {length(lines)}} rows x {.val {sum(widths)}} cols (fixed-width) to {.file {basename(path)}}."
+  )
+  invisible(path)
+}
+
+
 #' Stream a large delimited file to Parquet (constant memory)
 #'
 #' Converts a big CSV/text file to Parquet using the Polars streaming engine,

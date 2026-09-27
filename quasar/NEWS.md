@@ -30,7 +30,9 @@
   layout's code tables) come from the layout, so a raw fixed-width `.txt` reads as
   a named, typed, labelled data.frame (`haven::as_factor()` gives labelled
   factors).
-* **`qsr_write()` writes dBase `.dbf`**, closing the last read/write asymmetry.
+* **`qsr_write()` writes dBase `.dbf`**, and **`qsr_write_fwf()`** writes the
+  fixed-width (positional) format — the write half of `qsr_read_fwf()`, closing
+  the read/write round trip across every supported family.
 * **`qsr_write()` — the write half of `qsr_read()`.** Exports a data.frame to the
   format implied by the extension: CSV, Parquet, SPSS (`.sav`), Stata (`.dta`),
   SAS transport (`.xpt`), Excel (`.xlsx`), JSON/NDJSON, Arrow/Feather, and native
