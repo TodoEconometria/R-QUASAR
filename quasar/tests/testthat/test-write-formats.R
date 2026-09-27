@@ -32,6 +32,21 @@ test_that("qsr_write round-trips Arrow", { expect_roundtrip("arrow", "arrow") })
 test_that("qsr_write round-trips RDS", { expect_roundtrip("rds") })
 test_that("qsr_write round-trips RData", { expect_roundtrip("RData") })
 
+test_that("qsr_write round-trips dBase .dbf", {
+  skip_if_not_installed("foreign")
+  # dbf truncates names to 10 chars and stores strings as fixed-width, so use a
+  # simple frame and check values, not the generic long-name round-trip helper.
+  d <- data.frame(id = 1:4, grp = c("a", "b", "a", "c"),
+                  val = c(1.5, 2.5, 3.5, 4.5), stringsAsFactors = FALSE)
+  tf <- tempfile(fileext = ".dbf")
+  qsr_write(d, tf)
+  back <- qsr_read(tf, register = FALSE)
+  expect_equal(nrow(back), 4L)
+  expect_equal(as.integer(back$id), d$id)
+  expect_equal(as.numeric(back$val), d$val)
+  expect_equal(trimws(as.character(back$grp)), d$grp)
+})
+
 test_that("qsr_write refuses .sas7bdat with a helpful message", {
   tf <- tempfile(fileext = ".sas7bdat")
   expect_error(qsr_write(rt_df(), tf), "sas7bdat|xpt")

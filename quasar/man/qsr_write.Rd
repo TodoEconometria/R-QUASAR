@@ -12,7 +12,7 @@ qsr_write(data = NULL, path, format = "auto", name = "data", ...)
 \item{path}{Character. Destination file; the extension picks the format.}
 
 \item{format}{Character. \code{"auto"} (default) detects from the extension, or
-force one of \code{csv}/\code{parquet}/\code{spss}/\code{stata}/\code{sas}/\code{excel}/\code{json}/\code{arrow}/\code{rds}/\code{rdata}.}
+force one of \code{csv}/\code{parquet}/\code{spss}/\code{stata}/\code{sas}/\code{excel}/\code{dbf}/\code{json}/\code{arrow}/\code{rds}/\code{rdata}.}
 
 \item{name}{Character. For \code{.rdata}/\code{.rda}, the object name to store the
 data.frame under. Default \code{"data"}.}

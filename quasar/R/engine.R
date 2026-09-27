@@ -503,7 +503,7 @@ qsr_read <- function(path,
 #' @param data A data.frame, or NULL to use the registered context data.
 #' @param path Character. Destination file; the extension picks the format.
 #' @param format Character. `"auto"` (default) detects from the extension, or
-#'   force one of `csv`/`parquet`/`spss`/`stata`/`sas`/`excel`/`json`/`arrow`/`rds`/`rdata`.
+#'   force one of `csv`/`parquet`/`spss`/`stata`/`sas`/`excel`/`dbf`/`json`/`arrow`/`rds`/`rdata`.
 #' @param name Character. For `.rdata`/`.rda`, the object name to store the
 #'   data.frame under. Default `"data"`.
 #' @param ... Passed to the underlying writer.
@@ -535,6 +535,7 @@ qsr_write <- function(data = NULL, path, format = "auto", name = "data", ...) {
       json = "json", ndjson = , jsonl = "ndjson",
       arrow = , feather = "arrow",
       rds = "rds", rdata = , rda = "rdata",
+      dbf = "dbf",
       sas7bdat = cli::cli_abort(c(
         ".sas7bdat cannot be written (no open writer exists).",
         "i" = "Use {.file .xpt} for SAS, or another format."
@@ -564,6 +565,7 @@ qsr_write <- function(data = NULL, path, format = "auto", name = "data", ...) {
     arrow   = { need("arrow"); arrow::write_feather(df, path, ...) },
     rds     = saveRDS(df, path, ...),
     rdata   = { assign(name, df); save(list = name, file = path, ...) },
+    dbf     = { need("foreign"); foreign::write.dbf(df, path, ...) },
     cli::cli_abort("Unsupported write format: {.val {format}}.")
   )
   elapsed <- proc.time()[["elapsed"]] - t0
