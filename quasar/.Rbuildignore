@@ -2,6 +2,7 @@
 ^\.Rproj\.user$
 ^LICENSE\.md$
 ^CONTEXT\.md$
+^\.CONTEXT\.md$
 ^QUASAR_BLUEPRINT\.md$
 ^\.claude$
 ^README\.Rmd$

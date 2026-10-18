@@ -692,7 +692,7 @@ qsr_read_fwf <- function(path,
     if (is.null(tbl) || ncol(tbl) < 2L) next
     tbl <- as.data.frame(tbl)
     c1 <- as.character(tbl[[1]]); c2 <- as.character(tbl[[2]])
-    hdr <- which(trimws(c1) == "Código")
+    hdr <- which(trimws(c1) == paste0("C", intToUtf8(0xF3), "digo"))
     for (i in seq_along(hdr)) {
       h <- hdr[i]
       above <- c1[seq_len(h - 1L)]
@@ -778,8 +778,8 @@ qsr_read_layout <- function(data, layout, sheet = 1, skip = NULL,
                             encoding = "latin1",
                             col_var = "Variable", col_width = "Longitud",
                             col_type = "Tipo", col_dec = "Decimales",
-                            col_pos = "Posición",
-                            col_label = "Descripción",
+                            col_pos = paste0("Posici", intToUtf8(0xF3), "n"),
+                            col_label = paste0("Descripci", intToUtf8(0xF3), "n"),
                             col_valkey = "Diccionario de la variable",
                             value_labels = TRUE,
                             apply_decimals = TRUE, n_rows = NULL,

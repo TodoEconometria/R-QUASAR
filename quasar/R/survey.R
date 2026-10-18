@@ -727,7 +727,7 @@ qsr_codebook <- function(data = NULL, cols = NULL, max_values = 6,
   fmtn <- function(v) formatC(v, format = "g", digits = 4)
   trunc_join <- function(v) {
     v <- as.character(v)
-    if (length(v) > max_values) v <- c(v[seq_len(max_values)], "…")
+    if (length(v) > max_values) v <- c(v[seq_len(max_values)], intToUtf8(0x2026))
     paste(v, collapse = "; ")
   }
   describe1 <- function(x) {

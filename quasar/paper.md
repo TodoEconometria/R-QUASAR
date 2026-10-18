@@ -14,7 +14,7 @@ authors:
 affiliations:
   - name: TodoEconometria, Spain
     index: 1
-date: 24 August 2026
+date: 18 October 2026
 bibliography: paper.bib
 ---
 
@@ -64,12 +64,15 @@ packages— but the repetitive integration between raw microdata and
 publication-ready output, together with a transparent path to out-of-memory
 scale, is left to each analyst to reassemble. `rquasar` packages that integration
 as a coherent, reproducible framework: it reads the native formats of survey
-microdata directly (SPSS, Stata, SAS, fixed-width record layouts, Excel, and the
-columnar formats), produces weighted, design-based standard errors, confidence
-intervals and design effects in a single call by building on `survey` rather than
-reimplementing it, and writes results back out to any of those formats. It is
-aimed at researchers and public-statistics practitioners who need auditable
-output at scale.
+microdata directly (SPSS, Stata, SAS, fixed-width files —including record-layout
+definitions as published by statistical offices—, Excel, dBase, and the columnar
+formats), recodes the missing-value conventions of survey data and derives
+codebooks from value labels, produces weighted standard errors —both
+Taylor-linearised design-based estimates and replicate-weight designs (jackknife,
+BRR, bootstrap)—, confidence intervals and design effects in a single call by
+building on `survey` rather than reimplementing it, and writes results back out to
+any of those formats. It is aimed at researchers and public-statistics
+practitioners who need auditable output at scale.
 
 # Acknowledgements
 

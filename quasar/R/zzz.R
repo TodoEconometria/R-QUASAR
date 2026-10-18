@@ -1,7 +1,7 @@
 # nocov start
 
 #' @importFrom R6 R6Class
-#' @importFrom utils head
+#' @importFrom utils head tail
 #' @importFrom rlang .data %||%
 #' @importFrom stats sd
 NULL
