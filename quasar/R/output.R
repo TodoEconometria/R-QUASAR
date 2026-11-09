@@ -277,6 +277,15 @@ qsr_plot <- function(data        = NULL,
     if (!rlang::quo_is_null(x_var)) aes_args$x <- x_var
     if (!rlang::quo_is_null(y_var)) aes_args$y <- y_var
     if (!rlang::quo_is_null(color_var)) aes_args$colour <- color_var
+    # Zero-argument scatter: the first two numeric columns, as documented.
+    if (type == "scatter" && (is.null(aes_args$x) || is.null(aes_args$y))) {
+      num <- names(data)[vapply(data, is.numeric, logical(1))]
+      num <- setdiff(num, vapply(aes_args, rlang::as_label, character(1)))
+      if (is.null(aes_args$x) && length(num)) {
+        aes_args$x <- rlang::sym(num[1]); num <- num[-1]
+      }
+      if (is.null(aes_args$y) && length(num)) aes_args$y <- rlang::sym(num[1])
+    }
 
     base_aes <- rlang::inject(ggplot2::aes(!!!aes_args))
     p <- ggplot2::ggplot(data, base_aes)
