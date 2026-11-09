@@ -25,11 +25,12 @@ if (!is_not_cran) {
   message("Building for CRAN.")
 }
 
-# we set cran flags only if NOT_CRAN is empty and if
-# the vendored crates are present.
+# CRAN mode (NOT_CRAN empty) with the vendored crates present: at most two
+# parallel jobs (CRAN policy), no network (--offline) and exactly the
+# versions in Cargo.lock (--locked).
 .cran_flags <- ifelse(
   !is_not_cran && vendor_exists,
-  "-j 2 --offline",
+  "-j 2 --offline --locked",
   ""
 )
 

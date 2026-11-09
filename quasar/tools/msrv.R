@@ -1,116 +1,95 @@
-# read the DESCRIPTION file
+# Check that 'cargo' and 'rustc' are available and recent enough before
+# compiling. Sourced from tools/config.R by configure / configure.win.
+# It never installs a toolchain: it reports the versions found or stops with
+# an explanatory message.
+
 desc <- read.dcf("DESCRIPTION")
 
 if (!"SystemRequirements" %in% colnames(desc)) {
-  fmt <- c(
+  stop(paste(c(
     "`SystemRequirements` not found in `DESCRIPTION`.",
     "Please specify `SystemRequirements: Cargo (Rust's package manager), rustc`"
-  )
-  stop(paste(fmt, collapse = "\n"))
+  ), collapse = "\n"))
 }
 
-# extract system requirements
-sysreqs <- desc[, "SystemRequirements"]
+sysreqs <- gsub("\\s+", " ", desc[, "SystemRequirements"])
 
-# check that cargo and rustc is found
-if (!grepl("cargo", sysreqs, ignore.case = TRUE)) {
-  stop("You must specify `Cargo (Rust's package manager)` in your `SystemRequirements`")
+if (!grepl("cargo", sysreqs, ignore.case = TRUE) ||
+    !grepl("rustc", sysreqs, ignore.case = TRUE)) {
+  stop("`SystemRequirements` must name `Cargo (Rust's package manager), rustc`.")
 }
 
-if (!grepl("rustc", sysreqs, ignore.case = TRUE)) {
-  stop("You must specify `Cargo (Rust's package manager), rustc` in your `SystemRequirements`")
-}
+# e.g. "rustc >= 1.80" -> "1.80"
+parts <- strsplit(sysreqs, ",\\s*")[[1]]
+rustc_req <- trimws(parts[grepl("rustc", parts)][1])
 
-# split into parts
-parts <- strsplit(sysreqs, ", ")[[1]]
-
-# identify which is the rustc
-rustc_ver <- parts[grepl("rustc", parts)]
-
-# perform checks for the presence of rustc and cargo on the OS
-no_cargo_msg <- c(
-  "----------------------- [CARGO NOT FOUND]--------------------------",
-  "The 'cargo' command was not found on the PATH. Please install Cargo",
-  "from: https://www.rust-lang.org/tools/install",
-  "",
-  "Alternatively, you may install Cargo from your OS package manager:",
-  " - Debian/Ubuntu: apt-get install cargo",
-  " - Fedora/CentOS: dnf install cargo",
-  " - macOS: brew install rust",
-  "-------------------------------------------------------------------"
-)
-
-no_rustc_msg <- c(
-  "----------------------- [RUST NOT FOUND]---------------------------",
-  "The 'rustc' compiler was not found on the PATH. Please install",
-  paste(rustc_ver, "or higher from:"),
-  "https://www.rust-lang.org/tools/install",
-  "",
-  "Alternatively, you may install Rust from your OS package manager:",
-  " - Debian/Ubuntu: apt-get install rustc",
-  " - Fedora/CentOS: dnf install rustc",
-  " - macOS: brew install rust",
-  "-------------------------------------------------------------------"
-)
-
-# Add {user}/.cargo/bin to path before checking
-new_path <- paste0(
-  Sys.getenv("PATH"),
-  ":",
-  paste0(Sys.getenv("HOME"), "/.cargo/bin")
-)
-
-# set the path with the new path
-Sys.setenv("PATH" = new_path)
-
-# check for rustc installation
-rustc_version <- tryCatch(
-  system("rustc --version", intern = TRUE),
-  error = function(e) {
-    stop(paste(no_rustc_msg, collapse = "\n"))
-  }
-)
-
-# check for cargo installation
-cargo_version <- tryCatch(
-  system("cargo --version", intern = TRUE),
-  error = function(e) {
-    stop(paste(no_cargo_msg, collapse = "\n"))
-  }
-)
-
-# helper function to extract versions
 extract_semver <- function(ver) {
+  ver <- paste(ver, collapse = " ")
   if (grepl("\\d+\\.\\d+(\\.\\d+)?", ver)) {
-    sub(".*?(\\d+\\.\\d+(\\.\\d+)?).*", "\\1", ver)
+    sub("^[^0-9]*?(\\d+\\.\\d+(\\.\\d+)?).*$", "\\1", ver, perl = TRUE)
   } else {
-    NA
+    NA_character_
   }
 }
+msrv <- extract_semver(rustc_req)
 
-# get the MSRV
-msrv <- extract_semver(rustc_ver)
+install_hint <- c(
+  "Install Rust (rustc and cargo) from https://www.rust-lang.org/tools/install",
+  "or from your OS package manager:",
+  " - Debian/Ubuntu: apt-get install cargo rustc",
+  " - Fedora/RHEL:   dnf install cargo rustc",
+  " - macOS:         brew install rust",
+  " - Windows:       rustup with the 'x86_64-pc-windows-gnu' target"
+)
 
-# extract current version
-current_rust_version <- extract_semver(rustc_version)
-
-# perform check
-if (!is.na(msrv)) {
-  # -1 when current version is later
-  # 0 when they are the same
-  # 1 when MSRV is newer than current
-  is_msrv <- utils::compareVersion(msrv, current_rust_version)
-  if (is_msrv == 1) {
-    fmt <- paste0(
-      "\n------------------ [UNSUPPORTED RUST VERSION]------------------\n",
-      "- Minimum supported Rust version is %s.\n",
-      "- Installed Rust version is %s.\n",
-      "---------------------------------------------------------------"
-    )
-    stop(sprintf(fmt, msrv, current_rust_version))
-  }
+# The default rustup location is often missing from PATH in R sessions.
+home <- Sys.getenv(if (.Platform$OS.type == "windows") "USERPROFILE" else "HOME")
+cargo_bin <- file.path(home, ".cargo", "bin")
+if (nzchar(home) && dir.exists(cargo_bin)) {
+  Sys.setenv(PATH = paste(Sys.getenv("PATH"), cargo_bin, sep = .Platform$path.sep))
 }
 
-# print the versions
-versions_fmt <- "Using %s\nUsing %s"
-message(sprintf(versions_fmt, cargo_version, rustc_version))
+# First line of `<tool> --version`, or NA when the tool is missing or fails.
+# Sys.which() avoids the silent character(0) that system() returns on Unix.
+tool_version <- function(tool) {
+  if (!nzchar(Sys.which(tool))) {
+    return(NA_character_)
+  }
+  out <- tryCatch(
+    suppressWarnings(system2(tool, "--version", stdout = TRUE, stderr = TRUE)),
+    error = function(e) character()
+  )
+  status <- attr(out, "status")
+  if (length(out) == 0L || (!is.null(status) && status != 0L)) NA_character_ else out[1L]
+}
+
+rustc_version <- tool_version("rustc")
+cargo_version <- tool_version("cargo")
+
+if (is.na(rustc_version) || is.na(cargo_version)) {
+  missing <- c("rustc", "cargo")[c(is.na(rustc_version), is.na(cargo_version))]
+  stop(paste(c(
+    "",
+    "------------------------- [RUST NOT FOUND] -------------------------",
+    sprintf("Could not run %s.", paste(sprintf("'%s'", missing), collapse = " and ")),
+    sprintf("rquasar needs %s and cargo to compile its Rust backend.", rustc_req),
+    install_hint,
+    "--------------------------------------------------------------------"
+  ), collapse = "\n"), call. = FALSE)
+}
+
+current <- extract_semver(rustc_version)
+if (!is.na(msrv) && !is.na(current) &&
+    utils::compareVersion(msrv, current) == 1L) {
+  stop(paste(c(
+    "",
+    "-------------------- [UNSUPPORTED RUST VERSION] --------------------",
+    sprintf("rquasar needs rustc >= %s; found '%s'.", msrv, rustc_version),
+    "Update with `rustup update stable`, or:",
+    install_hint,
+    "--------------------------------------------------------------------"
+  ), collapse = "\n"), call. = FALSE)
+}
+
+# CRAN asks to report the versions used before compiling.
+message(sprintf("Using %s\nUsing %s", cargo_version, rustc_version))
