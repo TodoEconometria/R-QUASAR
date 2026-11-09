@@ -57,7 +57,7 @@ when \code{se = TRUE} and no \code{design} is supplied. \code{ids} defaults to \
 
 \item{ci_level}{Confidence level for the interval. Default 0.95. Intervals use
 the design degrees of freedom (\code{t}, not \code{z}); for \code{stat = "prop"} they use a
-logit (Rao-Scott) transform, so they stay inside \code{[0, 1]} and are asymmetric
+logit (Rao-Scott) transform, so they stay inside \verb{[0, 1]} and are asymmetric
 near 0/1 (where survey prevalences typically sit).}
 
 \item{deff}{Logical. Include the design effect column when \code{se = TRUE}.

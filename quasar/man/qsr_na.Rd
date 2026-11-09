@@ -21,7 +21,7 @@ qsr_na(
 \item{values}{Vector of sentinel values to set to NA (e.g. \code{c(99, -9)}).
 Matched numerically in numeric columns, as strings elsewhere.}
 
-\item{ranges}{List of numeric \code{c(lo, hi)} pairs; values in \code{[lo, hi]} become NA
+\item{ranges}{List of numeric \code{c(lo, hi)} pairs; values in \verb{[lo, hi]} become NA
 (e.g. \code{list(c(90, 99))}). Numeric columns only.}
 
 \item{na_strings}{Character values (trimmed) to set to NA in character/factor

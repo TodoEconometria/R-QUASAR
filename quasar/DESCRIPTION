@@ -80,6 +80,8 @@ Suggests:
     AER,
     nycflights13,
     survey,
+    convey,
+    withr,
     palmerpenguins
 Config/testthat/edition: 3
 VignetteBuilder: knitr
