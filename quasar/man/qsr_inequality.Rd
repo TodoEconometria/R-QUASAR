@@ -70,13 +70,15 @@ incomes: units with income \eqn{\le 0} are left out of those measures with a
 warning ('convey' stops with an error instead). The Gini keeps them.
 }
 \examples{
-d <- qsr_svydesign(qsr_survey, strata = "region", weights = "weight",
-                   register = FALSE)
-qsr_inequality(d, income = "ingreso_total")
+if (requireNamespace("survey", quietly = TRUE)) {
+  d <- qsr_svydesign(qsr_survey, strata = "region", weights = "weight",
+                     register = FALSE)
+  qsr_inequality(d, income = "ingreso_total")
 
-# All four measures by region
-qsr_inequality(d, income = "ingreso_total", by = "region",
-               measures = c("gini", "theil_t", "theil_l", "atkinson"))
+  # All four measures by region
+  qsr_inequality(d, income = "ingreso_total", by = "region",
+                 measures = c("gini", "theil_t", "theil_l", "atkinson"))
+}
 
 }
 \references{

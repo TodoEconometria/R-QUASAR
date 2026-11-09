@@ -64,21 +64,24 @@
 #' @seealso [qsr_inequality()], [qsr_svydesign()], [qsr_tabulate()].
 #'
 #' @examples
-#' d <- qsr_svydesign(qsr_survey, strata = "region", weights = "weight",
-#'                    register = FALSE)
-#' # Headcount, gap and severity with a single line
-#' qsr_poverty(d, income = "ingreso_total", line = 1200)
+#' if (requireNamespace("survey", quietly = TRUE)) {
+#'   d <- qsr_svydesign(qsr_survey, strata = "region", weights = "weight",
+#'                      register = FALSE)
+#'   # Headcount, gap and severity with a single line
+#'   qsr_poverty(d, income = "ingreso_total", line = 1200)
 #'
-#' # Headcount by region
-#' qsr_poverty(d, income = "ingreso_total", line = 1200, alpha = 0,
-#'             by = "region")
+#'   # Headcount by region
+#'   qsr_poverty(d, income = "ingreso_total", line = 1200, alpha = 0,
+#'               by = "region")
 #'
-#' # A line that changes every year (current prices)
-#' qsr_survey$z <- 1000 * 1.03^(qsr_survey$year - 2010)
-#' d2 <- qsr_svydesign(qsr_survey, strata = "region", weights = "weight",
-#'                     register = FALSE)
-#' qsr_poverty(d2, income = "ingreso_total", line = "z", by = "year",
-#'             alpha = 0)
+#'   # A line that changes every year (current prices)
+#'   svy <- qsr_survey
+#'   svy$z <- 1000 * 1.03^(svy$year - 2010)
+#'   d2 <- qsr_svydesign(svy, strata = "region", weights = "weight",
+#'                       register = FALSE)
+#'   qsr_poverty(d2, income = "ingreso_total", line = "z", by = "year",
+#'               alpha = 0)
+#' }
 #'
 #' @export
 qsr_poverty <- function(design = NULL,
@@ -188,13 +191,15 @@ qsr_poverty <- function(design = NULL,
 #' @seealso [qsr_poverty()], [qsr_svydesign()].
 #'
 #' @examples
-#' d <- qsr_svydesign(qsr_survey, strata = "region", weights = "weight",
-#'                    register = FALSE)
-#' qsr_inequality(d, income = "ingreso_total")
+#' if (requireNamespace("survey", quietly = TRUE)) {
+#'   d <- qsr_svydesign(qsr_survey, strata = "region", weights = "weight",
+#'                      register = FALSE)
+#'   qsr_inequality(d, income = "ingreso_total")
 #'
-#' # All four measures by region
-#' qsr_inequality(d, income = "ingreso_total", by = "region",
-#'                measures = c("gini", "theil_t", "theil_l", "atkinson"))
+#'   # All four measures by region
+#'   qsr_inequality(d, income = "ingreso_total", by = "region",
+#'                  measures = c("gini", "theil_t", "theil_l", "atkinson"))
+#' }
 #'
 #' @export
 qsr_inequality <- function(design = NULL,
