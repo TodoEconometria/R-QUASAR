@@ -184,14 +184,25 @@ QuasarContext <- R6::R6Class(
 #' this configuration automatically without requiring repeated arguments.
 #'
 #' @param significance_level Numeric. Default significance level. Default 0.05.
-#' @param random_seed Integer. Random seed for reproducibility. Default 42.
+#' @param random_seed Integer or NULL. Seed that [qsr_ml()] and [qsr_cv()] use
+#'   for each call (the global RNG state is restored afterwards, so the user's
+#'   random stream is never altered). Default NULL: no seeding.
 #' @param output_format Character. Output format. One of "apa7", "chicago", "custom".
 #' @param outlier_threshold Numeric. SD threshold for outlier detection. Default 3.
 #' @param data_path Character. Optional path for storing downloaded data and cache.
 #' @param config_path Character. Optional path to a YAML config file.
 #' @param ... Additional named parameters stored in context.
 #'
-#' @return Invisible - the global context object.
+#' @return Invisible - the global context object (print it to see the
+#'   current settings).
+#'
+#' @section Threads:
+#' rquasar uses at most `getOption("rquasar.threads", 2)` threads (Polars,
+#' data.table, ranger, xgboost), and never more than `OMP_THREAD_LIMIT` when
+#' that variable is set. Polars reads the limit once, when the package is
+#' loaded, through `POLARS_MAX_THREADS`: set the option (or that variable)
+#' before `library(rquasar)` to use more cores.
+#'
 #' @export
 #'
 #' @examples
@@ -201,7 +212,7 @@ QuasarContext <- R6::R6Class(
 #'   output_format      = "apa7"
 #' )
 qsr_config <- function(significance_level = 0.05,
-                       random_seed        = 42,
+                       random_seed        = NULL,
                        output_format      = c("apa7", "chicago", "custom"),
                        outlier_threshold  = 3,
                        data_path          = NULL,
@@ -248,11 +259,7 @@ qsr_config <- function(significance_level = 0.05,
     })
   }
 
-  # Set random seed globally
-  set.seed(random_seed)
-
   cli::cli_alert_success("QUASAR context configured")
-  print(.qsr_context)
 
   invisible(.qsr_context)
 }

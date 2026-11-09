@@ -112,7 +112,7 @@ qsr_normalize_text <- function(data = NULL,
       stringsAsFactors = FALSE
     )
     review_df <- review_df[order(review_df$distance, -review_df$n_affected), ]
-    print(review_df, row.names = FALSE)
+    cli::cli_verbatim(utils::capture.output(print(review_df, row.names = FALSE)))
     cli::cli_alert_warning(
       "Review matches with distance > 1 carefully before proceeding."
     )

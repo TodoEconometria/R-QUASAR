@@ -98,7 +98,7 @@ qsr_search <- function(query, sources = NULL, limit = 10L) {
 
   cli::cli_alert_success("Found {.val {nrow(out)}} datasets matching {.val {query}}")
   cli::cli_text("")
-  print(out, right = FALSE, row.names = FALSE)
+  cli::cli_verbatim(utils::capture.output(print(out, right = FALSE, row.names = FALSE)))
   cli::cli_text("")
   cli::cli_alert_info(
     'Fetch with: {.code qsr_fetch("source", indicator = "id")}'

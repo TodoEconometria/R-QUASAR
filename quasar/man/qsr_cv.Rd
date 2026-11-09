@@ -9,7 +9,8 @@ qsr_cv(
   data = NULL,
   method = c("rf", "xgboost", "svm", "nn", "lasso", "ridge", "elastic", "tree"),
   k = 10L,
-  ...
+  ...,
+  seed = NULL
 )
 }
 \arguments{
@@ -22,6 +23,10 @@ qsr_cv(
 \item{k}{Integer. Number of folds. Default 10.}
 
 \item{...}{Additional arguments passed to the underlying method.}
+
+\item{seed}{Integer or NULL. Seed for the fold assignment and the models,
+used only for this call. NULL (default) uses the \code{random_seed} set with
+\code{\link[=qsr_config]{qsr_config()}}, or leaves the RNG untouched.}
 }
 \value{
 A list with CV results (invisibly).

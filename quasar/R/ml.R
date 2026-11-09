@@ -29,7 +29,9 @@
 #'   }
 #' @param ... Additional arguments passed to the underlying method.
 #' @param name Character. Name for the model in context. Default "last".
-#' @param seed Integer or NULL. Random seed. Default reads from context.
+#' @param seed Integer or NULL. Random seed, used only for this call (the
+#'   global RNG state is restored afterwards). NULL (default) uses the
+#'   `random_seed` set with [qsr_config()], or leaves the RNG untouched.
 #'
 #' @return The fitted model object (invisibly). Stored in context.
 #'
@@ -78,9 +80,9 @@ qsr_ml <- function(formula = NULL,
   }
   df <- as.data.frame(data)
 
-  # Set seed
-  seed <- seed %||% .qsr_context$get("random_seed") %||% 42
-  set.seed(seed)
+  # Seed only when asked (argument or qsr_config(random_seed =)); the user's
+  # RNG state is restored on exit.
+  .qsr_local_seed(seed %||% .qsr_context$get("random_seed"))
 
   # Unsupervised methods (no formula needed)
   if (method %in% c("kmeans", "pca")) {
@@ -131,6 +133,7 @@ qsr_ml <- function(formula = NULL,
   dots <- dots[names(dots) %in% ranger_args]
   args <- c(list(formula = formula, data = df), dots)
   if (is.null(args$importance)) args$importance <- "impurity"
+  if (is.null(args$num.threads)) args$num.threads <- .qsr_threads()
   model <- do.call(ranger::ranger, args)
   cli::cli_alert_success(
     "Model {.strong Random Forest}: {deparse(formula)} ({.val {model$num.trees}} trees)"
@@ -173,6 +176,7 @@ qsr_ml <- function(formula = NULL,
   dtrain <- xgboost::xgb.DMatrix(data = x, label = y_num)
 
   params <- c(list(objective = objective), dots)
+  if (is.null(params$nthread)) params$nthread <- .qsr_threads()
   if (objective == "multi:softprob") {
     params$num_class <- length(unique(y_num))
   }
@@ -373,6 +377,9 @@ qsr_ml <- function(formula = NULL,
 #' @param method Character. ML method (same as `qsr_ml()`).
 #' @param k Integer. Number of folds. Default 10.
 #' @param ... Additional arguments passed to the underlying method.
+#' @param seed Integer or NULL. Seed for the fold assignment and the models,
+#'   used only for this call. NULL (default) uses the `random_seed` set with
+#'   [qsr_config()], or leaves the RNG untouched.
 #'
 #' @return A list with CV results (invisibly).
 #'
@@ -389,7 +396,8 @@ qsr_cv <- function(formula = NULL,
                    method = c("rf", "xgboost", "svm", "nn",
                               "lasso", "ridge", "elastic", "tree"),
                    k = 10L,
-                   ...) {
+                   ...,
+                   seed = NULL) {
 
   method <- match.arg(method)
 
@@ -408,8 +416,7 @@ qsr_cv <- function(formula = NULL,
     }
   }
 
-  seed <- .qsr_context$get("random_seed") %||% 42
-  set.seed(seed)
+  .qsr_local_seed(seed %||% .qsr_context$get("random_seed"))
 
   y_var <- all.vars(formula)[1]
   y <- df[[y_var]]
@@ -594,7 +601,7 @@ qsr_compare <- function(...) {
   comparison <- do.call(rbind, lapply(rows, as.data.frame))
 
   cli::cli_h3("Model Comparison")
-  print(comparison, row.names = FALSE)
+  cli::cli_verbatim(utils::capture.output(print(comparison, row.names = FALSE)))
 
   invisible(comparison)
 }

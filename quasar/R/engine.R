@@ -6,7 +6,8 @@
 
 # Adaptive Process Isolation:
 # - Small files (<10MB): direct call, single thread (fast, zero overhead)
-# - Large files (>10MB): subprocess via callr with ALL CPU cores
+# - Large files (>128MB): subprocess via callr, Polars capped at .qsr_threads()
+#   (option rquasar.threads, 2 by default; CRAN allows at most 2)
 # This prevents segfaults while maximizing performance.
 # Nobody else does this in R.
 
@@ -21,12 +22,13 @@
 #'
 #' @param rust_fn Character. Name of the internal Rust function.
 #' @param args List. Arguments to pass to the Rust function.
-#' @param n_cores Integer. Number of cores to use. Default: all available.
+#' @param n_cores Integer. Number of threads for Polars in the subprocess.
+#'   Default: option `rquasar.threads` (2), capped by `OMP_THREAD_LIMIT`.
 #'
 #' @return The result from the Rust function.
 #'
 #' @keywords internal
-.qsr_run_isolated <- function(rust_fn, args, n_cores = parallel::detectCores()) {
+.qsr_run_isolated <- function(rust_fn, args, n_cores = .qsr_threads()) {
   callr::r(
     function(fn_name, fn_args, cores) {
       Sys.setenv(POLARS_MAX_THREADS = as.character(cores))
@@ -550,7 +552,9 @@ qsr_write <- function(data = NULL, path, format = "auto", name = "data", ...) {
   t0 <- proc.time()[["elapsed"]]
   switch(format,
     csv = if (requireNamespace("data.table", quietly = TRUE)) {
-      data.table::fwrite(df, path, sep = if (identical(ext, "tsv")) "\t" else ",", ...)
+      fw <- list(...)
+      if (is.null(fw$nThread)) fw$nThread <- .qsr_threads()
+      do.call(data.table::fwrite, c(list(df, path, sep = if (identical(ext, "tsv")) "\t" else ","), fw))
     } else {
       utils::write.csv(df, path, row.names = FALSE, ...)
     },

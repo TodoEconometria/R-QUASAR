@@ -8,6 +8,9 @@ vignette: >
 ---
 
 ```{r setup, include = FALSE}
+# CRAN policy: at most 2 threads (Polars reads this when rquasar loads)
+Sys.setenv(POLARS_MAX_THREADS = 2)
+options(rquasar.threads = 2L)
 options(cli.unicode = FALSE, useFancyQuotes = FALSE)
 # gt tables self-contained: avoids an HTML dependency in the pandoc header
 # that some Windows rmarkdown setups write in native encoding (breaks pandoc).

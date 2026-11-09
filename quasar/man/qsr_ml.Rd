@@ -39,7 +39,9 @@ qsr_ml(
 
 \item{name}{Character. Name for the model in context. Default "last".}
 
-\item{seed}{Integer or NULL. Random seed. Default reads from context.}
+\item{seed}{Integer or NULL. Random seed, used only for this call (the
+global RNG state is restored afterwards). NULL (default) uses the
+\code{random_seed} set with \code{\link[=qsr_config]{qsr_config()}}, or leaves the RNG untouched.}
 }
 \value{
 The fitted model object (invisibly). Stored in context.

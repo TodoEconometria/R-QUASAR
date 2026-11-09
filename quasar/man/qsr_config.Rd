@@ -6,7 +6,7 @@
 \usage{
 qsr_config(
   significance_level = 0.05,
-  random_seed = 42,
+  random_seed = NULL,
   output_format = c("apa7", "chicago", "custom"),
   outlier_threshold = 3,
   data_path = NULL,
@@ -17,7 +17,9 @@ qsr_config(
 \arguments{
 \item{significance_level}{Numeric. Default significance level. Default 0.05.}
 
-\item{random_seed}{Integer. Random seed for reproducibility. Default 42.}
+\item{random_seed}{Integer or NULL. Seed that \code{\link[=qsr_ml]{qsr_ml()}} and \code{\link[=qsr_cv]{qsr_cv()}} use
+for each call (the global RNG state is restored afterwards, so the user's
+random stream is never altered). Default NULL: no seeding.}
 
 \item{output_format}{Character. Output format. One of "apa7", "chicago", "custom".}
 
@@ -30,12 +32,22 @@ qsr_config(
 \item{...}{Additional named parameters stored in context.}
 }
 \value{
-Invisible - the global context object.
+Invisible - the global context object (print it to see the
+current settings).
 }
 \description{
 Defines the project context once. All QUASAR functions read from
 this configuration automatically without requiring repeated arguments.
 }
+\section{Threads}{
+
+rquasar uses at most \code{getOption("rquasar.threads", 2)} threads (Polars,
+data.table, ranger, xgboost), and never more than \code{OMP_THREAD_LIMIT} when
+that variable is set. Polars reads the limit once, when the package is
+loaded, through \code{POLARS_MAX_THREADS}: set the option (or that variable)
+before \code{library(rquasar)} to use more cores.
+}
+
 \examples{
 qsr_config(
   significance_level = 0.05,

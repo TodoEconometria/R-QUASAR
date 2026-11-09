@@ -4,14 +4,15 @@
 \alias{.qsr_run_isolated}
 \title{Run a Rust/Polars function in an isolated subprocess}
 \usage{
-.qsr_run_isolated(rust_fn, args, n_cores = parallel::detectCores())
+.qsr_run_isolated(rust_fn, args, n_cores = .qsr_threads())
 }
 \arguments{
 \item{rust_fn}{Character. Name of the internal Rust function.}
 
 \item{args}{List. Arguments to pass to the Rust function.}
 
-\item{n_cores}{Integer. Number of cores to use. Default: all available.}
+\item{n_cores}{Integer. Number of threads for Polars in the subprocess.
+Default: option \code{rquasar.threads} (2), capped by \code{OMP_THREAD_LIMIT}.}
 }
 \value{
 The result from the Rust function.
