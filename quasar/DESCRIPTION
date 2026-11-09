@@ -1,13 +1,18 @@
 Package: rquasar
 Title: Query-Driven Unified Automated Stack for Analytical Runtime
 Version: 0.1.0
-Authors@R: 
+Authors@R: c(
     person("Juan Marcelo", "Gutierrez Miranda", , "info@todoeconometria.com", role = c("aut", "cre"),
-           comment = c(ORCID = "0000-0002-4452-7934"))
+           comment = c(ORCID = "0000-0002-4452-7934")),
+    person("Authors of the dependency Rust crates", role = c("ctb", "cph"),
+           comment = "see inst/AUTHORS file"))
 Description: A framework for R that eliminates boilerplate and
     standardizes project architecture for data scientists and academic
     researchers.
 License: GPL (>= 3)
+Copyright: Juan Marcelo Gutierrez Miranda for the R and Rust code of the
+    package; the vendored Rust crates in src/rust/vendor.tar.xz belong to
+    their authors, listed with their licences in inst/AUTHORS.
 Depends: 
     R (>= 4.2)
 Encoding: UTF-8
@@ -86,5 +91,5 @@ VignetteBuilder: knitr
 URL: https://github.com/TodoEconometria/R-QUASAR
 BugReports: https://github.com/TodoEconometria/R-QUASAR/issues
 Config/rextendr/version: 0.4.2
-SystemRequirements: Cargo (Rust's package manager), rustc >= 1.65.0, xz
+SystemRequirements: Cargo (Rust's package manager), rustc >= 1.82, xz
 Config/roxygen2/version: 8.1.0
