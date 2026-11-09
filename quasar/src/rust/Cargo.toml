@@ -26,9 +26,11 @@ polars = { version = '0.46', default-features = false, features = [
 
 # Profile used by R CMD INSTALL (cargo build --release). CRAN asks for as
 # little CPU time as possible, so no fat LTO and no single codegen unit.
+# Thin LTO costs no extra time here and drops dead code such as
+# extendr's unused reference to the non-API 'R_NamespaceRegistry'.
 [profile.release]
 opt-level = 2
-lto = false
+lto = "thin"
 codegen-units = 16
 debug = false
 incremental = false
