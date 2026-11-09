@@ -33,7 +33,9 @@ Creates a standardized project structure following QUASAR conventions.
 This is the entry point of the QUASAR framework.
 }
 \examples{
-\dontrun{
-qsr_init("electoral_analysis", type = "academic", author = "Nache")
-}
+prj <- qsr_init("electoral_analysis", type = "academic", author = "Nache",
+                path = tempdir())
+list.files(prj)
+unlink(prj, recursive = TRUE)
+
 }

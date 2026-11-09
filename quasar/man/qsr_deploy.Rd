@@ -42,19 +42,15 @@ QUASAR context (data, models, plots, tables). No Shiny/Plumber
 knowledge required.
 }
 \examples{
-\dontrun{
 qsr_data(mtcars)
 qsr_model(mpg ~ wt + hp)
-qsr_table()
-qsr_plot(type = "coefficient")
-
-# Generate Shiny dashboard
-qsr_deploy()
-
-# Generate REST API
-qsr_deploy(type = "api", path = "my_api/")
-
-# Generate and launch
+if (requireNamespace("shiny", quietly = TRUE)) {
+  # Generate a Shiny dashboard (files only, nothing is launched)
+  app <- qsr_deploy(path = file.path(tempdir(), "qsr_dashboard"))
+  list.files(app)
+}
+\dontrun{
+# Generate and launch (interactive session)
 qsr_deploy(launch = TRUE)
 }
 

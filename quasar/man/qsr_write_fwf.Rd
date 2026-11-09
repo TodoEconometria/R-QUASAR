@@ -42,8 +42,10 @@ pipelines and legacy systems. Numeric columns are right-aligned and everything
 else left-aligned by default; widths default to each column's longest value.
 }
 \examples{
-\dontrun{
-qsr_write_fwf(df, "out.txt", widths = c(2, 3, 5))
-}
+df <- data.frame(id = c("A1", "B2"), prov = c(28, 8), peso = c(73.5, 123.45))
+out <- tempfile(fileext = ".txt")
+qsr_write_fwf(df, out, widths = c(2, 3, 6))
+readLines(out)
+unlink(out)
 
 }

@@ -40,10 +40,9 @@ Create new features from existing columns: interactions, polynomials,
 lag/lead, binning, log transforms.
 }
 \examples{
-\dontrun{
 qsr_data(mtcars)
-qsr_feature(log = c("hp", "wt"), interactions = c("wt:hp"),
-            polynomial = c(wt = 2))
-}
+fe <- qsr_feature(log = c("hp", "wt"), interactions = c("wt:hp"),
+                  polynomial = c(wt = 2))
+head(fe)
 
 }

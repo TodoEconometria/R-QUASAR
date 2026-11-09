@@ -1,6 +1,57 @@
-# rquasar (development version)
+# rquasar 0.1.0
 
-## New features
+First public release and first CRAN submission.
+
+## Poverty and inequality
+
+* New **`qsr_poverty()`** estimates the Foster-Greer-Thorbecke family from a
+  complex survey design: headcount (`alpha = 0`), poverty gap (`alpha = 1`) and
+  severity (`alpha = 2`), with a poverty line that is one number, a column (a
+  line per household, year or region) or a vector, by domain (`by =`), with
+  design-based standard errors and confidence intervals on the design degrees
+  of freedom.
+* New **`qsr_inequality()`** estimates the Gini coefficient, the Theil T and
+  Theil L (mean log deviation) indices and, optionally, the Atkinson index, by
+  domain, with linearization (influence-function) standard errors.
+* Both accept Taylor designs (`qsr_svydesign()`, `survey::svydesign()`) and
+  replicate-weight designs (`survey::svrepdesign()`). Point estimates and
+  standard errors are tested against the 'convey' package and agree to 1e-10
+  (FGT 0/1/2, Gini, Theil T/L and Atkinson, overall, by domain and with
+  jackknife replicate weights). Difference: Theil and Atkinson leave out
+  incomes <= 0 with a warning, where 'convey' stops with an error.
+
+## Changes for CRAN
+
+* At most two threads by default: Polars (`POLARS_MAX_THREADS`, set when the
+  package loads unless already set), the isolated subprocess, `data.table`,
+  `ranger` and `xgboost` follow the option `rquasar.threads` (default 2) and
+  never exceed `OMP_THREAD_LIMIT`.
+* `qsr_config()` no longer calls `set.seed()`; `random_seed` now defaults to
+  `NULL`. `qsr_ml()` and `qsr_cv()` (new `seed` argument) seed only for the
+  duration of the call and restore the user's `.Random.seed`.
+* Informative tables (`qsr_compare()`, `qsr_search()`, the review table of
+  `qsr_normalize_text()`) are emitted as messages, so they can be silenced;
+  `qsr_config()` no longer prints the context.
+* Examples run on the bundled `qsr_survey` data and temporary files instead of
+  being wrapped in `\dontrun{}`; only examples that need a network, an API key
+  or an external service keep it. Every exported function documents its return
+  value (including the `rust_*` wrappers and `qsr_guide()`, which now returns
+  the guide invisibly).
+
+## Breaking changes
+
+* **Default output locations moved out of the working directory.** To avoid
+  writing to the user's current directory (and to close a cache-poisoning
+  vector), these now default to `tempdir()` or `tools::R_user_dir()`:
+  * `qsr_table()`, `qsr_plot()`, `qsr_report()` — `output_dir`
+  * `qsr_deploy()` — `path`
+  * `qsr_decision_log()` — `log_file`
+  * the `qsr_fetch()` / `qsr_download()` cache
+
+  Pass an explicit path to restore the previous behaviour, e.g.
+  `qsr_table(output_dir = "outputs/tables")`.
+
+## Features
 
 * **Design-based survey inference.** New **`qsr_svydesign()`** declares a complex
   survey design (strata, clusters/PSUs, FPC) wrapping [survey::svydesign()], and
@@ -68,32 +119,6 @@
   This turns raw survey microdata into population estimates (tasa de paro,
   millones de personas, participación por grupo) in one call.
 
-## Bug fixes
-
-* `qsr_fast_group()` now accepts **Parquet** inputs (previously it scanned any
-  file as CSV and failed on `.parquet`). Parquet files are read columnar and
-  aggregated in memory; CSV keeps the streaming Rust path.
-
-
-# rquasar 0.1.0
-
-First public release.
-
-## Breaking changes
-
-* **Default output locations moved out of the working directory.** To avoid
-  writing to the user's current directory (and to close a cache-poisoning
-  vector), these now default to `tempdir()` or `tools::R_user_dir()`:
-  * `qsr_table()`, `qsr_plot()`, `qsr_report()` — `output_dir`
-  * `qsr_deploy()` — `path`
-  * `qsr_decision_log()` — `log_file`
-  * the `qsr_fetch()` / `qsr_download()` cache
-
-  Pass an explicit path to restore the previous behaviour, e.g.
-  `qsr_table(output_dir = "outputs/tables")`.
-
-## Features
-
 * `qsr_survey`: a bundled, fully synthetic household-survey dataset (shaped like
   ENAHO / Encuesta de Hogares, with no real observations) so every survey tool
   can be shown on runnable, self-contained data. See `?qsr_survey`.
@@ -125,6 +150,9 @@ First public release.
 
 ## Bug fixes
 
+* `qsr_fast_group()` now accepts **Parquet** inputs (previously it scanned any
+  file as CSV and failed on `.parquet`). Parquet files are read columnar and
+  aggregated in memory; CSV keeps the streaming Rust path.
 * `qsr_read(columns = ...)` now returns the requested columns; the argument was
   previously ignored.
 * Raised the in-process/subprocess threshold from 10 MB to 128 MB so medium

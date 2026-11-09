@@ -25,9 +25,10 @@ Sorts a file by a column using Polars without loading the full file
 into R first.
 }
 \examples{
-\dontrun{
-qsr_fast_sort("data/results.csv", by = "score", desc = TRUE)
-qsr_table()
-}
+tmp <- tempfile(fileext = ".csv")
+utils::write.csv(qsr_survey, tmp, row.names = FALSE)
+top <- qsr_fast_sort(tmp, by = "ingreso_total", desc = TRUE)
+head(top[, c("id", "year", "ingreso_total")])
+unlink(tmp)
 
 }

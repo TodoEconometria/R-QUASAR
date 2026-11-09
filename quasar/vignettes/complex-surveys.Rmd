@@ -8,6 +8,9 @@ vignette: >
 ---
 
 ```{r setup, include = FALSE}
+# CRAN policy: at most 2 threads (Polars reads this when rquasar loads)
+Sys.setenv(POLARS_MAX_THREADS = 2)
+options(rquasar.threads = 2L)
 options(cli.unicode = FALSE, useFancyQuotes = FALSE)
 # gt tables self-contained: avoids an HTML dependency in the pandoc header
 # that some Windows rmarkdown setups write in native encoding (breaks pandoc).
@@ -86,3 +89,34 @@ For a replicate-weight design (BRR / jackknife / bootstrap), build one with
 `survey::svrepdesign()` and pass it straight to `design =`. The default
 `qsr_tabulate()` (without `se`) stays a fast, dependency-free point estimate;
 `se = TRUE` is the opt-in that makes it publication-grade.
+
+## 4. Poverty and inequality with design-based errors
+
+`qsr_poverty()` and `qsr_inequality()` work on the same design object. They
+estimate the Foster-Greer-Thorbecke measures (headcount, gap and severity) and
+the Gini, Theil and Atkinson indices with linearization standard errors, by
+domain. Here the "income" is the bundled synthetic household survey
+`qsr_survey` (no real observations), with a poverty line of 1200 (local
+currency per month) that rises 3% a year to keep its purchasing power:
+
+```{r poverty}
+svy <- qsr_survey
+svy$line <- 1200 * 1.03^(svy$year - 2010)
+d <- qsr_svydesign(svy, strata = "region", weights = "weight", register = FALSE)
+
+# Headcount, gap and severity for the whole population
+qsr_poverty(d, income = "ingreso_total", line = "line", digits = 4)
+
+# Headcount by region
+qsr_poverty(d, income = "ingreso_total", line = "line", alpha = 0,
+            by = "region", digits = 4)
+```
+
+```{r inequality}
+qsr_inequality(d, income = "ingreso_total", by = "indigenous",
+               measures = c("gini", "theil_t", "theil_l"), digits = 4)
+```
+
+The estimators and their standard errors are the ones of the
+[`convey`](https://cran.r-project.org/package=convey) package; the package
+tests check that both agree to 1e-10, for Taylor and replicate-weight designs.

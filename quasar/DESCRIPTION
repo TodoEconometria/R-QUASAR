@@ -1,14 +1,23 @@
 Package: rquasar
-Title: Query-Driven Unified Automated Stack for Analytical Runtime
+Title: Survey Microdata to Publication Tables with a 'Rust' Backend
 Version: 0.1.0
 Authors@R: c(
     person("Juan Marcelo", "Gutierrez Miranda", , "info@todoeconometria.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-4452-7934")),
     person("Authors of the dependency Rust crates", role = c("ctb", "cph"),
            comment = "see inst/AUTHORS file"))
-Description: A framework for R that eliminates boilerplate and
-    standardizes project architecture for data scientists and academic
-    researchers.
+Description: Reads survey microdata in the formats used by statistical
+    offices ('SPSS', 'Stata', 'SAS', fixed-width files with record layouts,
+    'Excel', 'dBase', 'Parquet'), recodes survey missing values, builds
+    codebooks and produces weighted tabulations with design-based standard
+    errors (via 'survey', Lumley (2004) <doi:10.18637/jss.v009.i08>),
+    regression tables and plots from a single registered context. Poverty
+    measures of the Foster, Greer and Thorbecke (1984)
+    <doi:10.2307/1913475> family and inequality indices (Gini, Theil,
+    Atkinson) are estimated with linearization or replicate-weight standard
+    errors (Langel and Tille (2013) <doi:10.1111/j.1467-985X.2012.01048.x>),
+    by domain. Large delimited files are filtered, grouped and converted to
+    'Parquet' in bounded memory by a 'Rust' backend built on 'Polars'.
 License: GPL (>= 3)
 Copyright: Juan Marcelo Gutierrez Miranda for the R and Rust code of the
     package; the vendored Rust crates in src/rust/vendor.tar.xz belong to
@@ -85,6 +94,9 @@ Suggests:
     AER,
     nycflights13,
     survey,
+    convey,
+    modelsummary,
+    withr,
     palmerpenguins
 Config/testthat/edition: 3
 VignetteBuilder: knitr

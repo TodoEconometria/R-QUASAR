@@ -48,14 +48,13 @@ Fits a statistical model using the active dataset from context.
 No need to pass data - QUASAR already knows it.
 }
 \examples{
-\dontrun{
 qsr_data(mtcars)
 qsr_model(mpg ~ wt + hp)
 qsr_model(mpg ~ wt + hp + disp, name = "full")
 qsr_model(am ~ wt + hp, type = "logit")
 
-# Weighted regression on survey microdata:
-qsr_read("EPA2016.sav")
-qsr_model(parado ~ sexo + edad + educacion, weights = "FACTOREL")
-}
+# Weighted regression on survey microdata (expansion factor):
+qsr_data(qsr_survey)
+qsr_model(log_income ~ education + experience + indigenous, weights = "weight")
+
 }

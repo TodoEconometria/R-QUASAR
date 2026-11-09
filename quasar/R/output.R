@@ -37,7 +37,6 @@
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' # Classic usage
 #' model <- lm(mpg ~ wt + hp, data = mtcars)
 #' qsr_table(model, caption = "Table 1. OLS estimates")
@@ -46,8 +45,7 @@
 #' qsr_data(mtcars)
 #' qsr_model(mpg ~ wt + hp)
 #' qsr_table()                    # uses last model
-#' qsr_table(type = "summary")   # uses active dataset
-#' }
+#'
 qsr_table <- function(x          = NULL,
                       type       = NULL,
                       format     = NULL,
@@ -158,7 +156,6 @@ qsr_table <- function(x          = NULL,
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' # Zero-argument (after qsr_data + qsr_model)
 #' qsr_data(mtcars)
 #' qsr_model(mpg ~ wt + hp)
@@ -166,14 +163,14 @@ qsr_table <- function(x          = NULL,
 #' qsr_plot(type = "coefficient")    # coefficient plot from last model
 #' qsr_plot(type = "correlation")    # correlation of active dataset
 #'
-#' # Explicit data
+#' # Explicit data, interactive
 #' qsr_plot(mtcars, type = "scatter", x = wt, y = mpg, interactive = TRUE)
 #'
 #' # Re-theme an existing ggplot
 #' p <- ggplot2::ggplot(mtcars, ggplot2::aes(wt, mpg)) +
 #'        ggplot2::geom_point()
-#' qsr_plot(p, interactive = TRUE)
-#' }
+#' qsr_plot(p)
+#'
 qsr_plot <- function(data        = NULL,
                      type        = "scatter",
                      x           = NULL,
@@ -280,6 +277,15 @@ qsr_plot <- function(data        = NULL,
     if (!rlang::quo_is_null(x_var)) aes_args$x <- x_var
     if (!rlang::quo_is_null(y_var)) aes_args$y <- y_var
     if (!rlang::quo_is_null(color_var)) aes_args$colour <- color_var
+    # Zero-argument scatter: the first two numeric columns, as documented.
+    if (type == "scatter" && (is.null(aes_args$x) || is.null(aes_args$y))) {
+      num <- names(data)[vapply(data, is.numeric, logical(1))]
+      num <- setdiff(num, vapply(aes_args, rlang::as_label, character(1)))
+      if (is.null(aes_args$x) && length(num)) {
+        aes_args$x <- rlang::sym(num[1]); num <- num[-1]
+      }
+      if (is.null(aes_args$y) && length(num)) aes_args$y <- rlang::sym(num[1])
+    }
 
     base_aes <- rlang::inject(ggplot2::aes(!!!aes_args))
     p <- ggplot2::ggplot(data, base_aes)
@@ -346,14 +352,21 @@ qsr_plot <- function(data        = NULL,
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' qsr_report(
-#'   title    = "Electoral Behavior Analysis 2024",
-#'   template = "journal_article",
-#'   journal  = "r_journal",
-#'   include  = c("models", "tables", "figures", "session_info")
-#' )
+#' \donttest{
+#' if (rmarkdown::pandoc_available()) {
+#'   qsr_reset()   # report only the models fitted below
+#'   qsr_data(mtcars)
+#'   qsr_model(mpg ~ wt + hp)
+#'   out <- qsr_report(
+#'     title   = "Fuel Efficiency Analysis",
+#'     template = "technical_report",
+#'     include = c("models", "tables"),
+#'     output_dir = file.path(tempdir(), "qsr_report")
+#'   )
+#'   file.exists(out)
 #' }
+#' }
+#'
 qsr_report <- function(template      = "journal_article",
                        journal       = NULL,
                        output_format = "html",
@@ -1190,9 +1203,14 @@ qsr_report <- function(template      = "journal_article",
       "```{r models, echo=FALSE, results='asis'}\n",
       "# Models stored in QUASAR context\n",
       "models <- .qsr_context$get_models()\n",
-      "if (length(models) > 0) {\n",
+      "if (length(models) > 0 && requireNamespace('modelsummary', quietly = TRUE)) {\n",
       "  modelsummary::modelsummary(models, output = 'markdown',\n",
       "    stars = c('*' = 0.1, '**' = 0.05, '***' = 0.01))\n",
+      "} else if (length(models) > 0) {\n",
+      "  for (nm in names(models)) {\n",
+      "    cat('\\n### ', nm, '\\n\\n', sep = '')\n",
+      "    print(knitr::kable(broom::tidy(models[[nm]]), digits = 3))\n",
+      "  }\n",
       "} else {\n",
       "  cat('No models registered. Use qsr_model() first.\\n')\n",
       "}\n",

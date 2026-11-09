@@ -50,8 +50,7 @@ Creates a structured entry in the decision log markdown file.
 Essential for replication packages and reviewer responses.
 }
 \examples{
-\dontrun{
-qsr_decision_log(
+log <- qsr_decision_log(
   id = "BOL-D001",
   title = "Income reference period correction",
   variable = "ingreso_laboral, ingreso_total",
@@ -61,8 +60,9 @@ qsr_decision_log(
   decision = "Multiply 2012+ incomes by 4.3 (weeks per month)",
   code_ref = "harmonize_bol.R > fix_income_reference_period() > line 87",
   impact_n = "None (no observations dropped)",
-  alternative = "Exclude 2012-2023. Rejected: loses 11 years of data."
+  alternative = "Exclude 2012-2023. Rejected: loses 11 years of data.",
+  log_file = tempfile(fileext = ".md")
 )
-}
+cat(readLines(log), sep = "\n")
 
 }

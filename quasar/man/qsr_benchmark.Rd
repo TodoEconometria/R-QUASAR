@@ -20,10 +20,12 @@ and reports the speedup. Useful for demonstrating QUASAR's performance
 advantage.
 }
 \examples{
-\dontrun{
-# Create a test file and benchmark
-write.csv(data.frame(x = rnorm(1e6), y = rnorm(1e6)), "test_big.csv")
-qsr_benchmark("test_big.csv")
+\donttest{
+tmp <- tempfile(fileext = ".csv")
+utils::write.csv(data.frame(x = stats::rnorm(1e4), y = stats::rnorm(1e4)),
+                 tmp, row.names = FALSE)
+qsr_benchmark(tmp, n_runs = 1)
+unlink(tmp)
 }
 
 }

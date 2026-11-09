@@ -24,6 +24,7 @@ export(qsr_feature)
 export(qsr_fetch)
 export(qsr_get)
 export(qsr_guide)
+export(qsr_inequality)
 export(qsr_init)
 export(qsr_load_folder)
 export(qsr_ml)
@@ -32,6 +33,7 @@ export(qsr_na)
 export(qsr_normalize_text)
 export(qsr_panel)
 export(qsr_plot)
+export(qsr_poverty)
 export(qsr_python)
 export(qsr_read)
 export(qsr_read_fwf)
@@ -63,6 +65,8 @@ importFrom(rlang,
   .data
 )
 importFrom(stats,sd)
-importFrom(utils,head)
-importFrom(utils,tail)
+importFrom(utils,
+  head,
+  tail
+)
 useDynLib(rquasar, .registration = TRUE)

@@ -15,9 +15,11 @@
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' qsr_init("electoral_analysis", type = "academic", author = "Nache")
-#' }
+#' prj <- qsr_init("electoral_analysis", type = "academic", author = "Nache",
+#'                 path = tempdir())
+#' list.files(prj)
+#' unlink(prj, recursive = TRUE)
+#'
 qsr_init <- function(name,
                      type    = c("academic", "bi_dashboard", "spark_pipeline"),
                      author  = getOption("rquasar.author", default = ""),

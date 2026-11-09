@@ -12,20 +12,21 @@ qsr_guide(source, year = NULL)
 
 \item{year}{Character or integer. Specific year (if applicable).}
 }
+\value{
+Invisibly, the guide as a list with the source \code{name}, the
+access requirement (\code{auth}), the portal \code{url}, the manual \code{steps} and the
+code to run \code{then}. Called for its printed instructions.
+}
 \description{
 When a data source requires authentication, form submission, or
 formal request, QUASAR guides the researcher through the manual
 steps and tells them what to run after downloading.
 }
 \examples{
-\dontrun{
 # International survey data (requires manual download)
 qsr_guide("lapop")
 
 # Latin American national statistics
-qsr_guide("dane_colombia")
 qsr_guide("ine_bolivia", year = 2023)
-qsr_guide("inei_peru")
-}
 
 }

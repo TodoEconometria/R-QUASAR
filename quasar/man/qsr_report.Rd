@@ -45,12 +45,19 @@ Creates a formatted report (HTML, PDF, or Word) from an R Markdown
 template, bundling tables, figures, and session info.
 }
 \examples{
-\dontrun{
-qsr_report(
-  title    = "Electoral Behavior Analysis 2024",
-  template = "journal_article",
-  journal  = "r_journal",
-  include  = c("models", "tables", "figures", "session_info")
-)
+\donttest{
+if (rmarkdown::pandoc_available()) {
+  qsr_reset()   # report only the models fitted below
+  qsr_data(mtcars)
+  qsr_model(mpg ~ wt + hp)
+  out <- qsr_report(
+    title   = "Fuel Efficiency Analysis",
+    template = "technical_report",
+    include = c("models", "tables"),
+    output_dir = file.path(tempdir(), "qsr_report")
+  )
+  file.exists(out)
 }
+}
+
 }

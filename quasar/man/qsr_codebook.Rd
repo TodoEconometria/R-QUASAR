@@ -35,9 +35,7 @@ already carries; it does not invent them. Feed the result to \code{\link[=qsr_ta
 a publication-ready codebook.
 }
 \examples{
-\dontrun{
-qsr_read("ENAHO.sav")          # keeps haven value labels
-qsr_codebook()
-}
+cb <- qsr_codebook(qsr_survey, cols = c("region", "education", "ingreso_total"))
+cb
 
 }

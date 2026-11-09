@@ -49,13 +49,11 @@ One-line data cleaning: imputation, outlier handling, normalization, and
 encoding. Reads from context if no data provided.
 }
 \examples{
-\dontrun{
 qsr_data(airquality)
-qsr_clean(impute = "median", outliers = "remove")
-qsr_table(type = "summary")
+clean <- qsr_clean(impute = "median", outliers = "winsorize")
+summary(clean$Ozone)
 
-# Full pipeline
-qsr_clean(impute = "mean", normalize = "zscore", encode = "dummy")
-}
+# Imputation and z-score scaling in one call
+qsr_clean(airquality, impute = "mean", normalize = "zscore", register = FALSE)
 
 }

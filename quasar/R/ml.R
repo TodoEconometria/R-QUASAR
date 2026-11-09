@@ -29,32 +29,29 @@
 #'   }
 #' @param ... Additional arguments passed to the underlying method.
 #' @param name Character. Name for the model in context. Default "last".
-#' @param seed Integer or NULL. Random seed. Default reads from context.
+#' @param seed Integer or NULL. Random seed, used only for this call (the
+#'   global RNG state is restored afterwards). NULL (default) uses the
+#'   `random_seed` set with [qsr_config()], or leaves the RNG untouched.
 #'
 #' @return The fitted model object (invisibly). Stored in context.
 #'
 #' @examples
-#' \dontrun{
 #' qsr_data(mtcars)
 #'
-#' # Random Forest
-#' qsr_ml(mpg ~ ., method = "rf")
-#'
-#' # XGBoost
-#' qsr_ml(mpg ~ ., method = "xgboost")
-#'
-#' # Neural Network
-#' qsr_ml(mpg ~ wt + hp, method = "nn", size = 10)
-#'
-#' # SVM
-#' qsr_ml(am ~ wt + hp, method = "svm")
-#'
 #' # Clustering (no formula needed)
-#' qsr_ml(method = "kmeans", centers = 3)
+#' km <- qsr_ml(method = "kmeans", centers = 3, seed = 1)
+#' table(km$cluster)
 #'
-#' # After fitting, everything works:
-#' qsr_table()
-#' qsr_plot(type = "importance")
+#' # Decision tree
+#' if (requireNamespace("rpart", quietly = TRUE)) {
+#'   qsr_ml(mpg ~ wt + hp, method = "tree")
+#' }
+#' \donttest{
+#' # Random Forest with impurity-based variable importance
+#' if (requireNamespace("ranger", quietly = TRUE)) {
+#'   rf <- qsr_ml(mpg ~ ., method = "rf", seed = 1)
+#'   sort(rf$variable.importance, decreasing = TRUE)
+#' }
 #' }
 #'
 #' @export
@@ -78,9 +75,9 @@ qsr_ml <- function(formula = NULL,
   }
   df <- as.data.frame(data)
 
-  # Set seed
-  seed <- seed %||% .qsr_context$get("random_seed") %||% 42
-  set.seed(seed)
+  # Seed only when asked (argument or qsr_config(random_seed =)); the user's
+  # RNG state is restored on exit.
+  .qsr_local_seed(seed %||% .qsr_context$get("random_seed"))
 
   # Unsupervised methods (no formula needed)
   if (method %in% c("kmeans", "pca")) {
@@ -131,6 +128,7 @@ qsr_ml <- function(formula = NULL,
   dots <- dots[names(dots) %in% ranger_args]
   args <- c(list(formula = formula, data = df), dots)
   if (is.null(args$importance)) args$importance <- "impurity"
+  if (is.null(args$num.threads)) args$num.threads <- .qsr_threads()
   model <- do.call(ranger::ranger, args)
   cli::cli_alert_success(
     "Model {.strong Random Forest}: {deparse(formula)} ({.val {model$num.trees}} trees)"
@@ -173,6 +171,7 @@ qsr_ml <- function(formula = NULL,
   dtrain <- xgboost::xgb.DMatrix(data = x, label = y_num)
 
   params <- c(list(objective = objective), dots)
+  if (is.null(params$nthread)) params$nthread <- .qsr_threads()
   if (objective == "multi:softprob") {
     params$num_class <- length(unique(y_num))
   }
@@ -373,14 +372,21 @@ qsr_ml <- function(formula = NULL,
 #' @param method Character. ML method (same as `qsr_ml()`).
 #' @param k Integer. Number of folds. Default 10.
 #' @param ... Additional arguments passed to the underlying method.
+#' @param seed Integer or NULL. Seed for the fold assignment and the models,
+#'   used only for this call. NULL (default) uses the `random_seed` set with
+#'   [qsr_config()], or leaves the RNG untouched.
 #'
 #' @return A list with CV results (invisibly).
 #'
 #' @examples
-#' \dontrun{
 #' qsr_data(mtcars)
-#' qsr_cv(mpg ~ ., method = "rf", k = 5)
-#' qsr_cv(am ~ wt + hp, method = "nn", size = 5, k = 10)
+#' if (requireNamespace("rpart", quietly = TRUE)) {
+#'   qsr_cv(mpg ~ wt + hp, method = "tree", k = 5, seed = 1)
+#' }
+#' \donttest{
+#' if (requireNamespace("ranger", quietly = TRUE)) {
+#'   qsr_cv(mpg ~ ., method = "rf", k = 5, seed = 1)
+#' }
 #' }
 #'
 #' @export
@@ -389,7 +395,8 @@ qsr_cv <- function(formula = NULL,
                    method = c("rf", "xgboost", "svm", "nn",
                               "lasso", "ridge", "elastic", "tree"),
                    k = 10L,
-                   ...) {
+                   ...,
+                   seed = NULL) {
 
   method <- match.arg(method)
 
@@ -408,8 +415,7 @@ qsr_cv <- function(formula = NULL,
     }
   }
 
-  seed <- .qsr_context$get("random_seed") %||% 42
-  set.seed(seed)
+  .qsr_local_seed(seed %||% .qsr_context$get("random_seed"))
 
   y_var <- all.vars(formula)[1]
   y <- df[[y_var]]
@@ -523,13 +529,11 @@ qsr_cv <- function(formula = NULL,
 #' @return A data.frame comparison table (invisibly). Also printed.
 #'
 #' @examples
-#' \dontrun{
 #' qsr_data(mtcars)
 #' qsr_model(mpg ~ wt, name = "simple")
 #' qsr_model(mpg ~ wt + hp, name = "medium")
 #' qsr_model(mpg ~ wt + hp + disp, name = "full")
 #' qsr_compare()
-#' }
 #'
 #' @export
 qsr_compare <- function(...) {
@@ -594,7 +598,7 @@ qsr_compare <- function(...) {
   comparison <- do.call(rbind, lapply(rows, as.data.frame))
 
   cli::cli_h3("Model Comparison")
-  print(comparison, row.names = FALSE)
+  cli::cli_verbatim(utils::capture.output(print(comparison, row.names = FALSE)))
 
   invisible(comparison)
 }

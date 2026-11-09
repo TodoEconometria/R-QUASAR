@@ -41,7 +41,6 @@ When \code{test = "auto"}, QUASAR chooses the test based on the formula:
 }
 }
 \examples{
-\dontrun{
 qsr_data(mtcars)
 
 # Auto-detect: t-test (mpg by transmission type)
@@ -58,6 +57,5 @@ qsr_test(~mpg, test = "shapiro")
 
 # Correlation
 qsr_test(mpg ~ wt, test = "correlation")
-}
 
 }

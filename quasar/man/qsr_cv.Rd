@@ -9,7 +9,8 @@ qsr_cv(
   data = NULL,
   method = c("rf", "xgboost", "svm", "nn", "lasso", "ridge", "elastic", "tree"),
   k = 10L,
-  ...
+  ...,
+  seed = NULL
 )
 }
 \arguments{
@@ -22,6 +23,10 @@ qsr_cv(
 \item{k}{Integer. Number of folds. Default 10.}
 
 \item{...}{Additional arguments passed to the underlying method.}
+
+\item{seed}{Integer or NULL. Seed for the fold assignment and the models,
+used only for this call. NULL (default) uses the \code{random_seed} set with
+\code{\link[=qsr_config]{qsr_config()}}, or leaves the RNG untouched.}
 }
 \value{
 A list with CV results (invisibly).
@@ -31,10 +36,14 @@ Performs k-fold cross-validation on the last model or a specified method.
 Reports accuracy (classification) or RMSE (regression).
 }
 \examples{
-\dontrun{
 qsr_data(mtcars)
-qsr_cv(mpg ~ ., method = "rf", k = 5)
-qsr_cv(am ~ wt + hp, method = "nn", size = 5, k = 10)
+if (requireNamespace("rpart", quietly = TRUE)) {
+  qsr_cv(mpg ~ wt + hp, method = "tree", k = 5, seed = 1)
+}
+\donttest{
+if (requireNamespace("ranger", quietly = TRUE)) {
+  qsr_cv(mpg ~ ., method = "rf", k = 5, seed = 1)
+}
 }
 
 }

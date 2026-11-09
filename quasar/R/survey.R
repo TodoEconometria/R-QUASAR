@@ -112,7 +112,7 @@ qsr_normalize_text <- function(data = NULL,
       stringsAsFactors = FALSE
     )
     review_df <- review_df[order(review_df$distance, -review_df$n_affected), ]
-    print(review_df, row.names = FALSE)
+    cli::cli_verbatim(utils::capture.output(print(review_df, row.names = FALSE)))
     cli::cli_alert_warning(
       "Review matches with distance > 1 carefully before proceeding."
     )
@@ -441,8 +441,7 @@ qsr_validate <- function(data = NULL,
 #' @return Invisible path to log file.
 #'
 #' @examples
-#' \dontrun{
-#' qsr_decision_log(
+#' log <- qsr_decision_log(
 #'   id = "BOL-D001",
 #'   title = "Income reference period correction",
 #'   variable = "ingreso_laboral, ingreso_total",
@@ -452,9 +451,10 @@ qsr_validate <- function(data = NULL,
 #'   decision = "Multiply 2012+ incomes by 4.3 (weeks per month)",
 #'   code_ref = "harmonize_bol.R > fix_income_reference_period() > line 87",
 #'   impact_n = "None (no observations dropped)",
-#'   alternative = "Exclude 2012-2023. Rejected: loses 11 years of data."
+#'   alternative = "Exclude 2012-2023. Rejected: loses 11 years of data.",
+#'   log_file = tempfile(fileext = ".md")
 #' )
-#' }
+#' cat(readLines(log), sep = "\n")
 #'
 #' @export
 qsr_decision_log <- function(id,
@@ -541,11 +541,11 @@ qsr_decision_log <- function(id,
 #'   invisibly.
 #'
 #' @examples
-#' \dontrun{
-#' qsr_read("EPA2016.sav")
-#' # Stratified by region, weighted by the elevation factor:
-#' qsr_svydesign(strata = "CCAA", weights = "FACTOREL")
-#' qsr_tabulate(by = "AOI", stat = "prop", se = TRUE)  # reuses the design
+#' if (requireNamespace("survey", quietly = TRUE)) {
+#'   # Stratified by region, weighted by the expansion factor:
+#'   qsr_svydesign(qsr_survey, strata = "region", weights = "weight")
+#'   # qsr_tabulate(se = TRUE) reuses the registered design
+#'   qsr_tabulate(qsr_survey, by = "indigenous", stat = "prop", se = TRUE)
 #' }
 #'
 #' @export
@@ -633,10 +633,11 @@ qsr_svydesign <- function(data = NULL, ids = ~1, strata = NULL, weights = NULL,
 #' @return The data.frame with the matched values set to NA (invisibly).
 #'
 #' @examples
-#' \dontrun{
-#' qsr_read("ENAHO.dta")
-#' qsr_na(values = c(99, -9), ranges = list(c(9000, 9999)), na_strings = c("", "."))
-#' }
+#' df <- data.frame(age = c(25, 99, 40, -9), income = c(1200, 9999, 800, 1500),
+#'                  job = c("farmer", "", ".", "trader"))
+#' clean <- qsr_na(df, values = c(99, -9), ranges = list(c(9000, 9999)),
+#'                 na_strings = c("", "."), register = FALSE)
+#' clean
 #'
 #' @export
 qsr_na <- function(data = NULL, values = NULL, ranges = NULL, na_strings = NULL,
@@ -707,10 +708,8 @@ qsr_na <- function(data = NULL, values = NULL, ranges = NULL, na_strings = NULL,
 #'   `n`, `n_missing`, `pct_missing`, `n_unique` and `values` (invisibly).
 #'
 #' @examples
-#' \dontrun{
-#' qsr_read("ENAHO.sav")          # keeps haven value labels
-#' qsr_codebook()
-#' }
+#' cb <- qsr_codebook(qsr_survey, cols = c("region", "education", "ingreso_total"))
+#' cb
 #'
 #' @export
 qsr_codebook <- function(data = NULL, cols = NULL, max_values = 6,
@@ -814,13 +813,17 @@ qsr_codebook <- function(data = NULL, cols = NULL, max_values = 6,
 #'   as a tidy table.
 #'
 #' @examples
-#' \dontrun{
-#' qsr_read("EPA2016.sav")
-#' # Weighted distribution of activity status:
-#' qsr_tabulate(by = "AOI", weight = "FACTOREL", stat = "prop")
-#' # Same, but with design-based SE + 95% CI (stratified by region):
-#' qsr_tabulate(by = "AOI", weight = "FACTOREL", stat = "prop",
-#'              se = TRUE, strata = "CCAA")
+#' # Weighted distribution by region (population shares)
+#' qsr_tabulate(qsr_survey, by = "region", weight = "weight", stat = "prop")
+#'
+#' # Weighted mean income by indigenous self-identification
+#' qsr_tabulate(qsr_survey, by = "indigenous", measure = "ingreso_total",
+#'              stat = "mean")
+#'
+#' # Same, with design-based SE + 95% CI (stratified by region):
+#' if (requireNamespace("survey", quietly = TRUE)) {
+#'   qsr_tabulate(qsr_survey, by = "indigenous", measure = "ingreso_total",
+#'                stat = "mean", se = TRUE, strata = "region", weight = "weight")
 #' }
 #'
 #' @export
