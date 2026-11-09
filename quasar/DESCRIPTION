@@ -90,6 +90,7 @@ Suggests:
     nycflights13,
     survey,
     convey,
+    modelsummary,
     withr,
     palmerpenguins
 Config/testthat/edition: 3
