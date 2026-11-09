@@ -35,13 +35,10 @@ Performs group-by operations directly on a file using Polars - no need
 to load the full dataset into R first.
 }
 \examples{
-\dontrun{
-# Average salary by department
-qsr_fast_group("employees.csv", by = "department", col = "salary", fn = "mean")
-
-# Then immediately plot or table it
-qsr_table()
-qsr_plot(type = "bar", x = department, y = salary_mean)
-}
+tmp <- tempfile(fileext = ".csv")
+utils::write.csv(qsr_survey, tmp, row.names = FALSE)
+# Average income by year, computed by the Rust engine
+qsr_fast_group(tmp, by = "year", col = "ingreso_total", fn = "mean")
+unlink(tmp)
 
 }

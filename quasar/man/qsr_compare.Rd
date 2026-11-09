@@ -17,12 +17,10 @@ Compares all models stored in context (or specified models) using
 standard metrics: AIC, BIC, R2, RMSE, accuracy.
 }
 \examples{
-\dontrun{
 qsr_data(mtcars)
 qsr_model(mpg ~ wt, name = "simple")
 qsr_model(mpg ~ wt + hp, name = "medium")
 qsr_model(mpg ~ wt + hp + disp, name = "full")
 qsr_compare()
-}
 
 }

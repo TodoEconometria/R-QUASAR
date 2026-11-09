@@ -46,20 +46,16 @@ Designed for the workflow: "download manually, point QUASAR at
 the folder, let it handle everything."
 }
 \examples{
-\dontrun{
-# Point QUASAR at your manually downloaded Bolivia surveys
-surveys <- qsr_load_folder(
-  "E:/quasar_data/coca_research/raw/bolivia/",
-  extract_zips = TRUE
-)
-
-# Stack all years into one panel
-panel <- qsr_load_folder(
-  "E:/quasar_data/coca_research/raw/bolivia/",
-  pattern = "Persona",
-  stack = TRUE,
-  name = "eh_personas"
-)
+dir <- file.path(tempdir(), "eh_raw")
+dir.create(dir, showWarnings = FALSE)
+for (y in 2021:2023) {
+  utils::write.csv(data.frame(year = y, id = 1:3, ingreso = c(900, 1500, 2100)),
+                   file.path(dir, paste0("Persona_", y, ".csv")), row.names = FALSE)
 }
+# Stack all years into one panel
+panel <- qsr_load_folder(dir, pattern = "Persona", stack = TRUE,
+                         name = "eh_personas")
+table(panel$year)
+unlink(dir, recursive = TRUE)
 
 }

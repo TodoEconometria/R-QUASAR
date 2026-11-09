@@ -75,8 +75,18 @@ decimals), and each column carries its dictionary label. It is the bridge that
 \code{\link[=qsr_read]{qsr_read()}} cannot cross, because the metadata is out of band.
 }
 \examples{
+# A record layout (usually the INE "diseno de registro" spreadsheet; a
+# data.frame with the same columns works too)
+layout <- data.frame(Variable = c("id", "edad", "peso"),
+                     Longitud = c(2, 3, 5),
+                     Tipo = c("A", "N", "N"),
+                     Decimales = c(NA, 0, 2))
+tmp <- tempfile(fileext = ".txt")
+writeLines(c("A104507350", "B203612345"), tmp)
+qsr_read_layout(tmp, layout, register = FALSE)
+unlink(tmp)
 \dontrun{
-qsr_read_layout("md_EPA_2021T4.txt", "dr_EPA_2021.xlsx", sheet = "Diseño")
+qsr_read_layout("md_EPA_2021T4.txt", "dr_EPA_2021.xlsx", sheet = 2)
 }
 
 }

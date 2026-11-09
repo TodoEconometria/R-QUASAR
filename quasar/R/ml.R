@@ -36,27 +36,22 @@
 #' @return The fitted model object (invisibly). Stored in context.
 #'
 #' @examples
-#' \dontrun{
 #' qsr_data(mtcars)
 #'
-#' # Random Forest
-#' qsr_ml(mpg ~ ., method = "rf")
-#'
-#' # XGBoost
-#' qsr_ml(mpg ~ ., method = "xgboost")
-#'
-#' # Neural Network
-#' qsr_ml(mpg ~ wt + hp, method = "nn", size = 10)
-#'
-#' # SVM
-#' qsr_ml(am ~ wt + hp, method = "svm")
-#'
 #' # Clustering (no formula needed)
-#' qsr_ml(method = "kmeans", centers = 3)
+#' km <- qsr_ml(method = "kmeans", centers = 3, seed = 1)
+#' table(km$cluster)
 #'
-#' # After fitting, everything works:
-#' qsr_table()
-#' qsr_plot(type = "importance")
+#' # Decision tree
+#' if (requireNamespace("rpart", quietly = TRUE)) {
+#'   qsr_ml(mpg ~ wt + hp, method = "tree")
+#' }
+#' \donttest{
+#' # Random Forest with impurity-based variable importance
+#' if (requireNamespace("ranger", quietly = TRUE)) {
+#'   rf <- qsr_ml(mpg ~ ., method = "rf", seed = 1)
+#'   sort(rf$variable.importance, decreasing = TRUE)
+#' }
 #' }
 #'
 #' @export
@@ -384,10 +379,14 @@ qsr_ml <- function(formula = NULL,
 #' @return A list with CV results (invisibly).
 #'
 #' @examples
-#' \dontrun{
 #' qsr_data(mtcars)
-#' qsr_cv(mpg ~ ., method = "rf", k = 5)
-#' qsr_cv(am ~ wt + hp, method = "nn", size = 5, k = 10)
+#' if (requireNamespace("rpart", quietly = TRUE)) {
+#'   qsr_cv(mpg ~ wt + hp, method = "tree", k = 5, seed = 1)
+#' }
+#' \donttest{
+#' if (requireNamespace("ranger", quietly = TRUE)) {
+#'   qsr_cv(mpg ~ ., method = "rf", k = 5, seed = 1)
+#' }
 #' }
 #'
 #' @export
@@ -530,13 +529,11 @@ qsr_cv <- function(formula = NULL,
 #' @return A data.frame comparison table (invisibly). Also printed.
 #'
 #' @examples
-#' \dontrun{
 #' qsr_data(mtcars)
 #' qsr_model(mpg ~ wt, name = "simple")
 #' qsr_model(mpg ~ wt + hp, name = "medium")
 #' qsr_model(mpg ~ wt + hp + disp, name = "full")
 #' qsr_compare()
-#' }
 #'
 #' @export
 qsr_compare <- function(...) {

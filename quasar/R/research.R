@@ -171,21 +171,17 @@ qsr_download <- function(url,
 #'   if `stack = TRUE` (invisibly).
 #'
 #' @examples
-#' \dontrun{
-#' # Point QUASAR at your manually downloaded Bolivia surveys
-#' surveys <- qsr_load_folder(
-#'   "E:/quasar_data/coca_research/raw/bolivia/",
-#'   extract_zips = TRUE
-#' )
-#'
-#' # Stack all years into one panel
-#' panel <- qsr_load_folder(
-#'   "E:/quasar_data/coca_research/raw/bolivia/",
-#'   pattern = "Persona",
-#'   stack = TRUE,
-#'   name = "eh_personas"
-#' )
+#' dir <- file.path(tempdir(), "eh_raw")
+#' dir.create(dir, showWarnings = FALSE)
+#' for (y in 2021:2023) {
+#'   utils::write.csv(data.frame(year = y, id = 1:3, ingreso = c(900, 1500, 2100)),
+#'                    file.path(dir, paste0("Persona_", y, ".csv")), row.names = FALSE)
 #' }
+#' # Stack all years into one panel
+#' panel <- qsr_load_folder(dir, pattern = "Persona", stack = TRUE,
+#'                          name = "eh_personas")
+#' table(panel$year)
+#' unlink(dir, recursive = TRUE)
 #'
 #' @export
 qsr_load_folder <- function(path,
@@ -564,24 +560,16 @@ qsr_load_folder <- function(path,
 #' 4. Optionally balances the panel (all key combinations)
 #'
 #' @examples
-#' \dontrun{
-#' # Download from multiple sources
-#' qsr_download("https://dataunodc.un.org/.../coca.xlsx", name = "unodc")
-#' qsr_fetch("worldbank", indicator = "NY.GDP.PCAP.KD",
-#'           country = c("BOL", "PER", "COL"), name = "wb_gdp")
-#'
-#' # Build panel - joins by country + year
-#' qsr_panel(
-#'   sources = c("unodc", "wb_gdp"),
-#'   join_by = c("country", "year"),
-#'   rename  = list(Country = "country", Year = "year"),
-#'   balance = TRUE
-#' )
-#'
-#' # Now analyze
-#' qsr_model(coca_area ~ gdp_pc + poverty_gap)
-#' qsr_table()
-#' }
+#' gdp <- data.frame(country = rep(c("BOL", "PER"), each = 3),
+#'                   year = rep(2020:2022, 2),
+#'                   gdp_pc = c(3100, 3400, 3600, 6100, 6700, 7100))
+#' pov <- data.frame(Country = c("BOL", "PER", "PER"), Year = c(2020, 2021, 2022),
+#'                   poverty = c(37.2, 30.1, 27.5))
+#' # Joins by country + year after harmonising the column names
+#' p <- qsr_panel(gdp, pov, join_by = c("country", "year"),
+#'                rename = list(Country = "country", Year = "year"),
+#'                balance = TRUE)
+#' p
 #'
 #' @export
 qsr_panel <- function(...,
@@ -921,18 +909,19 @@ qsr_scrape <- function(source,
 #'   plot for "map".
 #'
 #' @examples
+#' \donttest{
+#' if (requireNamespace("sf", quietly = TRUE)) {
+#'   nc <- system.file("shape/nc.shp", package = "sf")
+#'   counties <- qsr_spatial(nc)
+#'   # Choropleth map
+#'   qsr_spatial(nc, operation = "map", fill_var = "BIR74")
+#' }
+#' }
 #' \dontrun{
-#' # Read a shapefile
-#' qsr_spatial("data/municipios.gpkg")
-#'
-#' # Extract raster values by polygon (zonal statistics)
+#' # Zonal statistics need a raster of your own
 #' qsr_spatial("data/municipios.gpkg", operation = "extract",
 #'             raster = "data/elevation.tif", fun = "mean",
 #'             name = "elevation_by_municipio")
-#'
-#' # Create a choropleth map
-#' qsr_spatial("data/municipios.gpkg", operation = "map",
-#'             fill_var = "population")
 #' }
 #'
 #' @export

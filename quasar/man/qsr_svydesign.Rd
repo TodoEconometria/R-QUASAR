@@ -71,11 +71,11 @@ provider ships \strong{replicate weights} (BRR/jackknife/bootstrap), pass them v
 the same way by \code{\link[=qsr_tabulate]{qsr_tabulate()}} and \code{\link[=qsr_model]{qsr_model()}}.
 }
 \examples{
-\dontrun{
-qsr_read("EPA2016.sav")
-# Stratified by region, weighted by the elevation factor:
-qsr_svydesign(strata = "CCAA", weights = "FACTOREL")
-qsr_tabulate(by = "AOI", stat = "prop", se = TRUE)  # reuses the design
+if (requireNamespace("survey", quietly = TRUE)) {
+  # Stratified by region, weighted by the expansion factor:
+  qsr_svydesign(qsr_survey, strata = "region", weights = "weight")
+  # qsr_tabulate(se = TRUE) reuses the registered design
+  qsr_tabulate(qsr_survey, by = "indigenous", stat = "prop", se = TRUE)
 }
 
 }

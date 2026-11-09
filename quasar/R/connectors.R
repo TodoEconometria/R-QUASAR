@@ -54,17 +54,19 @@
 #' @export
 #'
 #' @examples
+#' if (requireNamespace("RSQLite", quietly = TRUE)) {
+#'   # In-memory SQLite (zero setup): get the connection and write a table
+#'   con <- qsr_db("sqlite", .conn = TRUE)
+#'   DBI::dbWriteTable(con, "cars", mtcars)
+#'   DBI::dbGetQuery(con, "SELECT cyl, AVG(mpg) AS mpg FROM cars GROUP BY cyl")
+#'   DBI::dbDisconnect(con)
+#' }
 #' \dontrun{
-#' # In-memory SQLite (zero setup)
-#' qsr_db("sqlite")
-#'
-#' # Read a table
-#' qsr_db("sqlite", dbname = "research.sqlite", table = "surveys")
-#'
-#' # Run a query
+#' # External server (needs credentials)
 #' qsr_db("postgres", dbname = "research",
 #'        query = "SELECT * FROM surveys WHERE year > 2020")
 #' }
+#'
 qsr_db <- function(driver   = c("sqlite", "postgres", "mysql", "odbc"),
                    dbname   = NULL,
                    host     = "localhost",

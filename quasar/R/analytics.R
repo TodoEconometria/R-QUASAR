@@ -30,14 +30,12 @@
 #' @return A cleaned data.frame (invisibly).
 #'
 #' @examples
-#' \dontrun{
 #' qsr_data(airquality)
-#' qsr_clean(impute = "median", outliers = "remove")
-#' qsr_table(type = "summary")
+#' clean <- qsr_clean(impute = "median", outliers = "winsorize")
+#' summary(clean$Ozone)
 #'
-#' # Full pipeline
-#' qsr_clean(impute = "mean", normalize = "zscore", encode = "dummy")
-#' }
+#' # Imputation and z-score scaling in one call
+#' qsr_clean(airquality, impute = "mean", normalize = "zscore", register = FALSE)
 #'
 #' @export
 qsr_clean <- function(data = NULL,
@@ -227,7 +225,6 @@ qsr_clean <- function(data = NULL,
 #' - Two numeric variables: Pearson correlation
 #'
 #' @examples
-#' \dontrun{
 #' qsr_data(mtcars)
 #'
 #' # Auto-detect: t-test (mpg by transmission type)
@@ -244,7 +241,6 @@ qsr_clean <- function(data = NULL,
 #'
 #' # Correlation
 #' qsr_test(mpg ~ wt, test = "correlation")
-#' }
 #'
 #' @export
 qsr_test <- function(formula = NULL,
@@ -435,11 +431,10 @@ qsr_test <- function(formula = NULL,
 #' @return Data frame with new features (invisibly).
 #'
 #' @examples
-#' \dontrun{
 #' qsr_data(mtcars)
-#' qsr_feature(log = c("hp", "wt"), interactions = c("wt:hp"),
-#'             polynomial = c(wt = 2))
-#' }
+#' fe <- qsr_feature(log = c("hp", "wt"), interactions = c("wt:hp"),
+#'                   polynomial = c(wt = 2))
+#' head(fe)
 #'
 #' @export
 qsr_feature <- function(data = NULL,

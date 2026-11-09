@@ -50,14 +50,15 @@ occupies a fixed byte range. Fields are given either by \code{positions}
 handled explicitly (survey files are often \code{latin1} or \code{cp850}).
 }
 \examples{
-\dontrun{
-# EPF record layout: household id (1-5), province (7-8), status (15-16)
+# EPF-style record layout: household id (1-5), province (7-8), status (15-16)
+tmp <- tempfile(fileext = ".txt")
+writeLines(c("00001 28      01", "00002 08      02"), tmp)
 qsr_read_fwf(
-  "TIPREG3.TXT",
+  tmp,
   positions = list(c(1, 5), c(7, 8), c(15, 16)),
   col_names = c("hogar", "provincia", "situacion"),
-  encoding = "cp850"
+  encoding = "utf8"
 )
-}
+unlink(tmp)
 
 }

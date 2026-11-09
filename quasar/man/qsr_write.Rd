@@ -44,10 +44,11 @@ Supported extensions (mirroring \code{\link[=qsr_read]{qsr_read()}}):
 \code{.sas7bdat} cannot be written (no open writer exists); use \code{.xpt} for SAS.
 }
 \examples{
-\dontrun{
-qsr_read("EPA2016.sav")
-qsr_write(path = "epa_clean.parquet")   # to a lakehouse
-qsr_write(path = "epa_clean.dta")       # to Stata for a collaborator
+out <- file.path(tempdir(), "survey.csv")
+qsr_write(qsr_survey, path = out)
+if (requireNamespace("haven", quietly = TRUE)) {
+  # to Stata for a collaborator
+  qsr_write(qsr_survey, path = file.path(tempdir(), "survey.dta"))
 }
 
 }

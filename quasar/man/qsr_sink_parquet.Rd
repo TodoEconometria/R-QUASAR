@@ -35,14 +35,13 @@ laptop. When \code{encoding} needs transcoding the file is passed once through a
 streaming UTF-8 conversion before the sink (two disk passes, still flat memory).
 }
 \examples{
-\dontrun{
-# 13 GB pipe-separated, latin1 -> keep 6 columns -> Parquet
-qsr_sink_parquet(
-  "EXTR_PB.csv", "bronze/extr_pb.parquet",
-  delim = "|", encoding = "latin1",
-  columns = c("TELEFONO", "PROVINCIA_NOR", "SEGMENTO_TELCO")
-)
-qsr_read("bronze/extr_pb.parquet")  # fast columnar read afterwards
-}
+# Pipe-separated file -> keep 3 columns -> Parquet, in bounded memory
+csv <- tempfile(fileext = ".csv")
+utils::write.table(qsr_survey, csv, sep = "|", row.names = FALSE)
+pq <- tempfile(fileext = ".parquet")
+qsr_sink_parquet(csv, pq, delim = "|",
+                 columns = c("id", "year", "ingreso_total"))
+qsr_read(pq, register = FALSE)   # fast columnar read afterwards
+unlink(c(csv, pq))
 
 }

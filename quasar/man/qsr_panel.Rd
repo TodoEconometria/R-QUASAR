@@ -51,23 +51,15 @@ The panel builder:
 }
 }
 \examples{
-\dontrun{
-# Download from multiple sources
-qsr_download("https://dataunodc.un.org/.../coca.xlsx", name = "unodc")
-qsr_fetch("worldbank", indicator = "NY.GDP.PCAP.KD",
-          country = c("BOL", "PER", "COL"), name = "wb_gdp")
-
-# Build panel - joins by country + year
-qsr_panel(
-  sources = c("unodc", "wb_gdp"),
-  join_by = c("country", "year"),
-  rename  = list(Country = "country", Year = "year"),
-  balance = TRUE
-)
-
-# Now analyze
-qsr_model(coca_area ~ gdp_pc + poverty_gap)
-qsr_table()
-}
+gdp <- data.frame(country = rep(c("BOL", "PER"), each = 3),
+                  year = rep(2020:2022, 2),
+                  gdp_pc = c(3100, 3400, 3600, 6100, 6700, 7100))
+pov <- data.frame(Country = c("BOL", "PER", "PER"), Year = c(2020, 2021, 2022),
+                  poverty = c(37.2, 30.1, 27.5))
+# Joins by country + year after harmonising the column names
+p <- qsr_panel(gdp, pov, join_by = c("country", "year"),
+               rename = list(Country = "country", Year = "year"),
+               balance = TRUE)
+p
 
 }

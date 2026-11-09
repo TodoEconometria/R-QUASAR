@@ -400,16 +400,16 @@ qsr_search <- function(query, sources = NULL, limit = 10L) {
 #'   "dane_colombia", "lapop", "pnis_colombia".
 #' @param year Character or integer. Specific year (if applicable).
 #'
+#' @return Invisibly, the guide as a list with the source `name`, the
+#'   access requirement (`auth`), the portal `url`, the manual `steps` and the
+#'   code to run `then`. Called for its printed instructions.
+#'
 #' @examples
-#' \dontrun{
 #' # International survey data (requires manual download)
 #' qsr_guide("lapop")
 #'
 #' # Latin American national statistics
-#' qsr_guide("dane_colombia")
 #' qsr_guide("ine_bolivia", year = 2023)
-#' qsr_guide("inei_peru")
-#' }
 #'
 #' @export
 qsr_guide <- function(source, year = NULL) {
@@ -471,6 +471,7 @@ qsr_guide <- function(source, year = NULL) {
   }
   cli::cli_text("  Then run:")
   cli::cli_code(g$then)
+  invisible(g)
 }
 
 

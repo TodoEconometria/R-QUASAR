@@ -44,18 +44,19 @@ Load shapefiles, GeoPackages, or GeoTIFF rasters. Extract values
 by polygon (zonal statistics). Create choropleth maps.
 }
 \examples{
+\donttest{
+if (requireNamespace("sf", quietly = TRUE)) {
+  nc <- system.file("shape/nc.shp", package = "sf")
+  counties <- qsr_spatial(nc)
+  # Choropleth map
+  qsr_spatial(nc, operation = "map", fill_var = "BIR74")
+}
+}
 \dontrun{
-# Read a shapefile
-qsr_spatial("data/municipios.gpkg")
-
-# Extract raster values by polygon (zonal statistics)
+# Zonal statistics need a raster of your own
 qsr_spatial("data/municipios.gpkg", operation = "extract",
             raster = "data/elevation.tif", fun = "mean",
             name = "elevation_by_municipio")
-
-# Create a choropleth map
-qsr_spatial("data/municipios.gpkg", operation = "map",
-            fill_var = "population")
 }
 
 }

@@ -84,28 +84,23 @@ the first data.frame is loaded) - to resume a session from saved data
 For fixed-width (positional) survey files, use \code{\link[=qsr_read_fwf]{qsr_read_fwf()}}.
 }
 \examples{
-\dontrun{
-# Read a CSV - 10-30x faster than read.csv
-qsr_read("data/large_file.csv")
+tmp <- tempfile(fileext = ".csv")
+utils::write.csv(qsr_survey, tmp, row.names = FALSE)
 
-# Read only specific columns
-qsr_read("data/big.csv", columns = c("id", "value", "date"))
+# Read a CSV with the Rust (Polars) engine
+df <- qsr_read(tmp)
 
-# Read first 1000 rows
-qsr_read("data/big.csv", n_rows = 1000)
+# Only some columns, first 100 rows
+qsr_read(tmp, columns = c("id", "year", "ingreso_total"), n_rows = 100,
+         register = FALSE)
 
-# Read Parquet (auto-detected from extension)
-qsr_read("data/results.parquet")
+# Native R formats are auto-detected from the extension
+rds <- tempfile(fileext = ".rds")
+saveRDS(mtcars, rds)
+qsr_read(rds, register = FALSE)
 
-# Modern interchange + native R (all auto-detected from extension)
-qsr_read("data/events.ndjson")    # JSON Lines (one object per line)
-qsr_read("data/panel.arrow")      # Arrow IPC / Feather v2
-qsr_read("data/session.rds")      # resume from a saved data.frame
-
-# After qsr_read(), data is in context - use qsr_table(), qsr_plot() directly
-qsr_read("data/survey.csv")
-qsr_table(type = "summary")
-qsr_plot(type = "correlation")
-}
+# After qsr_read(), the data is in context
+qsr_tabulate(by = "region", stat = "prop")
+unlink(c(tmp, rds))
 
 }

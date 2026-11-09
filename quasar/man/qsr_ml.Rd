@@ -52,27 +52,22 @@ trains the model, and stores it for downstream use with \code{qsr_table()},
 \code{qsr_plot()}, and \code{qsr_compare()}.
 }
 \examples{
-\dontrun{
 qsr_data(mtcars)
 
-# Random Forest
-qsr_ml(mpg ~ ., method = "rf")
-
-# XGBoost
-qsr_ml(mpg ~ ., method = "xgboost")
-
-# Neural Network
-qsr_ml(mpg ~ wt + hp, method = "nn", size = 10)
-
-# SVM
-qsr_ml(am ~ wt + hp, method = "svm")
-
 # Clustering (no formula needed)
-qsr_ml(method = "kmeans", centers = 3)
+km <- qsr_ml(method = "kmeans", centers = 3, seed = 1)
+table(km$cluster)
 
-# After fitting, everything works:
-qsr_table()
-qsr_plot(type = "importance")
+# Decision tree
+if (requireNamespace("rpart", quietly = TRUE)) {
+  qsr_ml(mpg ~ wt + hp, method = "tree")
+}
+\donttest{
+# Random Forest with impurity-based variable importance
+if (requireNamespace("ranger", quietly = TRUE)) {
+  rf <- qsr_ml(mpg ~ ., method = "rf", seed = 1)
+  sort(rf$variable.importance, decreasing = TRUE)
+}
 }
 
 }

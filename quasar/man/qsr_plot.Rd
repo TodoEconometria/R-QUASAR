@@ -76,7 +76,6 @@ Wraps ggplot2 and plotly with a consistent academic theme. If called with
 no data argument, uses the active dataset or last model from context.
 }
 \examples{
-\dontrun{
 # Zero-argument (after qsr_data + qsr_model)
 qsr_data(mtcars)
 qsr_model(mpg ~ wt + hp)
@@ -84,12 +83,12 @@ qsr_plot()                        # scatter of first 2 numeric cols
 qsr_plot(type = "coefficient")    # coefficient plot from last model
 qsr_plot(type = "correlation")    # correlation of active dataset
 
-# Explicit data
+# Explicit data, interactive
 qsr_plot(mtcars, type = "scatter", x = wt, y = mpg, interactive = TRUE)
 
 # Re-theme an existing ggplot
 p <- ggplot2::ggplot(mtcars, ggplot2::aes(wt, mpg)) +
        ggplot2::geom_point()
-qsr_plot(p, interactive = TRUE)
-}
+qsr_plot(p)
+
 }

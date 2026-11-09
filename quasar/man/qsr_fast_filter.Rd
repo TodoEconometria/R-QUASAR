@@ -28,13 +28,11 @@ Filters rows from a file directly using Polars - processes the file
 without loading it entirely into R memory.
 }
 \examples{
-\dontrun{
-# Filter large dataset without loading into memory
-qsr_fast_filter("data/sales.csv", col = "amount", op = "gt", value = 1000)
-
-# Chain: filter -> table
-qsr_fast_filter("data/survey.csv", col = "age", op = "gte", value = 18)
-qsr_table(type = "summary")
-}
+tmp <- tempfile(fileext = ".csv")
+utils::write.csv(qsr_survey, tmp, row.names = FALSE)
+# Filter without loading the whole file into R
+rich <- qsr_fast_filter(tmp, col = "ingreso_total", op = "gt", value = 5000)
+nrow(rich)
+unlink(tmp)
 
 }

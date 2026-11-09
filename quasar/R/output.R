@@ -37,7 +37,6 @@
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' # Classic usage
 #' model <- lm(mpg ~ wt + hp, data = mtcars)
 #' qsr_table(model, caption = "Table 1. OLS estimates")
@@ -46,8 +45,7 @@
 #' qsr_data(mtcars)
 #' qsr_model(mpg ~ wt + hp)
 #' qsr_table()                    # uses last model
-#' qsr_table(type = "summary")   # uses active dataset
-#' }
+#'
 qsr_table <- function(x          = NULL,
                       type       = NULL,
                       format     = NULL,
@@ -158,7 +156,6 @@ qsr_table <- function(x          = NULL,
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' # Zero-argument (after qsr_data + qsr_model)
 #' qsr_data(mtcars)
 #' qsr_model(mpg ~ wt + hp)
@@ -166,14 +163,14 @@ qsr_table <- function(x          = NULL,
 #' qsr_plot(type = "coefficient")    # coefficient plot from last model
 #' qsr_plot(type = "correlation")    # correlation of active dataset
 #'
-#' # Explicit data
+#' # Explicit data, interactive
 #' qsr_plot(mtcars, type = "scatter", x = wt, y = mpg, interactive = TRUE)
 #'
 #' # Re-theme an existing ggplot
 #' p <- ggplot2::ggplot(mtcars, ggplot2::aes(wt, mpg)) +
 #'        ggplot2::geom_point()
-#' qsr_plot(p, interactive = TRUE)
-#' }
+#' qsr_plot(p)
+#'
 qsr_plot <- function(data        = NULL,
                      type        = "scatter",
                      x           = NULL,
@@ -346,14 +343,21 @@ qsr_plot <- function(data        = NULL,
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' qsr_report(
-#'   title    = "Electoral Behavior Analysis 2024",
-#'   template = "journal_article",
-#'   journal  = "r_journal",
-#'   include  = c("models", "tables", "figures", "session_info")
-#' )
+#' \donttest{
+#' if (rmarkdown::pandoc_available()) {
+#'   qsr_reset()   # report only the models fitted below
+#'   qsr_data(mtcars)
+#'   qsr_model(mpg ~ wt + hp)
+#'   out <- qsr_report(
+#'     title   = "Fuel Efficiency Analysis",
+#'     template = "technical_report",
+#'     include = c("models", "tables"),
+#'     output_dir = file.path(tempdir(), "qsr_report")
+#'   )
+#'   file.exists(out)
 #' }
+#' }
+#'
 qsr_report <- function(template      = "journal_article",
                        journal       = NULL,
                        output_format = "html",

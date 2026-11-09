@@ -324,16 +324,15 @@ qsr_data <- function(data, name = NULL) {
 #' @export
 #'
 #' @examples
-#' \dontrun{
 #' qsr_data(mtcars)
 #' qsr_model(mpg ~ wt + hp)
 #' qsr_model(mpg ~ wt + hp + disp, name = "full")
 #' qsr_model(am ~ wt + hp, type = "logit")
 #'
-#' # Weighted regression on survey microdata:
-#' qsr_read("EPA2016.sav")
-#' qsr_model(parado ~ sexo + edad + educacion, weights = "FACTOREL")
-#' }
+#' # Weighted regression on survey microdata (expansion factor):
+#' qsr_data(qsr_survey)
+#' qsr_model(log_income ~ education + experience + indigenous, weights = "weight")
+#'
 qsr_model <- function(formula,
                       type   = c("lm", "glm", "logit", "probit"),
                       data   = NULL,

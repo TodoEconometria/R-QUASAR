@@ -164,29 +164,24 @@
 #' For fixed-width (positional) survey files, use [qsr_read_fwf()].
 #'
 #' @examples
-#' \dontrun{
-#' # Read a CSV - 10-30x faster than read.csv
-#' qsr_read("data/large_file.csv")
+#' tmp <- tempfile(fileext = ".csv")
+#' utils::write.csv(qsr_survey, tmp, row.names = FALSE)
 #'
-#' # Read only specific columns
-#' qsr_read("data/big.csv", columns = c("id", "value", "date"))
+#' # Read a CSV with the Rust (Polars) engine
+#' df <- qsr_read(tmp)
 #'
-#' # Read first 1000 rows
-#' qsr_read("data/big.csv", n_rows = 1000)
+#' # Only some columns, first 100 rows
+#' qsr_read(tmp, columns = c("id", "year", "ingreso_total"), n_rows = 100,
+#'          register = FALSE)
 #'
-#' # Read Parquet (auto-detected from extension)
-#' qsr_read("data/results.parquet")
+#' # Native R formats are auto-detected from the extension
+#' rds <- tempfile(fileext = ".rds")
+#' saveRDS(mtcars, rds)
+#' qsr_read(rds, register = FALSE)
 #'
-#' # Modern interchange + native R (all auto-detected from extension)
-#' qsr_read("data/events.ndjson")    # JSON Lines (one object per line)
-#' qsr_read("data/panel.arrow")      # Arrow IPC / Feather v2
-#' qsr_read("data/session.rds")      # resume from a saved data.frame
-#'
-#' # After qsr_read(), data is in context - use qsr_table(), qsr_plot() directly
-#' qsr_read("data/survey.csv")
-#' qsr_table(type = "summary")
-#' qsr_plot(type = "correlation")
-#' }
+#' # After qsr_read(), the data is in context
+#' qsr_tabulate(by = "region", stat = "prop")
+#' unlink(c(tmp, rds))
 #'
 #' @export
 qsr_read <- function(path,
@@ -513,10 +508,11 @@ qsr_read <- function(path,
 #' @return The `path` (invisibly).
 #'
 #' @examples
-#' \dontrun{
-#' qsr_read("EPA2016.sav")
-#' qsr_write(path = "epa_clean.parquet")   # to a lakehouse
-#' qsr_write(path = "epa_clean.dta")       # to Stata for a collaborator
+#' out <- file.path(tempdir(), "survey.csv")
+#' qsr_write(qsr_survey, path = out)
+#' if (requireNamespace("haven", quietly = TRUE)) {
+#'   # to Stata for a collaborator
+#'   qsr_write(qsr_survey, path = file.path(tempdir(), "survey.dta"))
 #' }
 #'
 #' @export
@@ -605,15 +601,16 @@ qsr_write <- function(data = NULL, path, format = "auto", name = "data", ...) {
 #' @return A data.frame (invisibly). All columns are character; cast as needed.
 #'
 #' @examples
-#' \dontrun{
-#' # EPF record layout: household id (1-5), province (7-8), status (15-16)
+#' # EPF-style record layout: household id (1-5), province (7-8), status (15-16)
+#' tmp <- tempfile(fileext = ".txt")
+#' writeLines(c("00001 28      01", "00002 08      02"), tmp)
 #' qsr_read_fwf(
-#'   "TIPREG3.TXT",
+#'   tmp,
 #'   positions = list(c(1, 5), c(7, 8), c(15, 16)),
 #'   col_names = c("hogar", "provincia", "situacion"),
-#'   encoding = "cp850"
+#'   encoding = "utf8"
 #' )
-#' }
+#' unlink(tmp)
 #'
 #' @export
 qsr_read_fwf <- function(path,
@@ -773,8 +770,18 @@ qsr_read_fwf <- function(path,
 #' @return A data.frame (invisibly): named, typed, labelled columns.
 #'
 #' @examples
+#' # A record layout (usually the INE "diseno de registro" spreadsheet; a
+#' # data.frame with the same columns works too)
+#' layout <- data.frame(Variable = c("id", "edad", "peso"),
+#'                      Longitud = c(2, 3, 5),
+#'                      Tipo = c("A", "N", "N"),
+#'                      Decimales = c(NA, 0, 2))
+#' tmp <- tempfile(fileext = ".txt")
+#' writeLines(c("A104507350", "B203612345"), tmp)
+#' qsr_read_layout(tmp, layout, register = FALSE)
+#' unlink(tmp)
 #' \dontrun{
-#' qsr_read_layout("md_EPA_2021T4.txt", "dr_EPA_2021.xlsx", sheet = "Diseño")
+#' qsr_read_layout("md_EPA_2021T4.txt", "dr_EPA_2021.xlsx", sheet = 2)
 #' }
 #'
 #' @export
@@ -882,9 +889,11 @@ qsr_read_layout <- function(data, layout, sheet = 1, skip = NULL,
 #' @return The path (invisibly).
 #'
 #' @examples
-#' \dontrun{
-#' qsr_write_fwf(df, "out.txt", widths = c(2, 3, 5))
-#' }
+#' df <- data.frame(id = c("A1", "B2"), prov = c(28, 8), peso = c(73.5, 123.45))
+#' out <- tempfile(fileext = ".txt")
+#' qsr_write_fwf(df, out, widths = c(2, 3, 6))
+#' readLines(out)
+#' unlink(out)
 #'
 #' @export
 qsr_write_fwf <- function(data = NULL, path, widths = NULL, align = NULL,
@@ -961,15 +970,14 @@ qsr_write_fwf <- function(data = NULL, path, widths = NULL, align = NULL,
 #' streaming UTF-8 conversion before the sink (two disk passes, still flat memory).
 #'
 #' @examples
-#' \dontrun{
-#' # 13 GB pipe-separated, latin1 -> keep 6 columns -> Parquet
-#' qsr_sink_parquet(
-#'   "EXTR_PB.csv", "bronze/extr_pb.parquet",
-#'   delim = "|", encoding = "latin1",
-#'   columns = c("TELEFONO", "PROVINCIA_NOR", "SEGMENTO_TELCO")
-#' )
-#' qsr_read("bronze/extr_pb.parquet")  # fast columnar read afterwards
-#' }
+#' # Pipe-separated file -> keep 3 columns -> Parquet, in bounded memory
+#' csv <- tempfile(fileext = ".csv")
+#' utils::write.table(qsr_survey, csv, sep = "|", row.names = FALSE)
+#' pq <- tempfile(fileext = ".parquet")
+#' qsr_sink_parquet(csv, pq, delim = "|",
+#'                  columns = c("id", "year", "ingreso_total"))
+#' qsr_read(pq, register = FALSE)   # fast columnar read afterwards
+#' unlink(c(csv, pq))
 #'
 #' @export
 qsr_sink_parquet <- function(path, out, delim = NULL, columns = NULL,
@@ -1012,9 +1020,11 @@ qsr_sink_parquet <- function(path, out, delim = NULL, columns = NULL,
 #' @return A data.frame with summary statistics.
 #'
 #' @examples
-#' \dontrun{
-#' qsr_fast_summary("data/large_file.csv")
-#' }
+#' tmp <- tempfile(fileext = ".csv")
+#' utils::write.csv(qsr_survey[, c("education", "experience", "ingreso_total")],
+#'                  tmp, row.names = FALSE)
+#' qsr_fast_summary(tmp)
+#' unlink(tmp)
 #'
 #' @export
 qsr_fast_summary <- function(path) {
@@ -1071,14 +1081,11 @@ qsr_fast_summary <- function(path) {
 #' @return A data.frame with grouped results (invisibly).
 #'
 #' @examples
-#' \dontrun{
-#' # Average salary by department
-#' qsr_fast_group("employees.csv", by = "department", col = "salary", fn = "mean")
-#'
-#' # Then immediately plot or table it
-#' qsr_table()
-#' qsr_plot(type = "bar", x = department, y = salary_mean)
-#' }
+#' tmp <- tempfile(fileext = ".csv")
+#' utils::write.csv(qsr_survey, tmp, row.names = FALSE)
+#' # Average income by year, computed by the Rust engine
+#' qsr_fast_group(tmp, by = "year", col = "ingreso_total", fn = "mean")
+#' unlink(tmp)
 #'
 #' @export
 qsr_fast_group <- function(path,
@@ -1186,14 +1193,12 @@ qsr_fast_group <- function(path,
 #' @return A data.frame with filtered results (invisibly).
 #'
 #' @examples
-#' \dontrun{
-#' # Filter large dataset without loading into memory
-#' qsr_fast_filter("data/sales.csv", col = "amount", op = "gt", value = 1000)
-#'
-#' # Chain: filter -> table
-#' qsr_fast_filter("data/survey.csv", col = "age", op = "gte", value = 18)
-#' qsr_table(type = "summary")
-#' }
+#' tmp <- tempfile(fileext = ".csv")
+#' utils::write.csv(qsr_survey, tmp, row.names = FALSE)
+#' # Filter without loading the whole file into R
+#' rich <- qsr_fast_filter(tmp, col = "ingreso_total", op = "gt", value = 5000)
+#' nrow(rich)
+#' unlink(tmp)
 #'
 #' @export
 qsr_fast_filter <- function(path,
@@ -1257,10 +1262,11 @@ qsr_fast_filter <- function(path,
 #' @return A data.frame with sorted results (invisibly).
 #'
 #' @examples
-#' \dontrun{
-#' qsr_fast_sort("data/results.csv", by = "score", desc = TRUE)
-#' qsr_table()
-#' }
+#' tmp <- tempfile(fileext = ".csv")
+#' utils::write.csv(qsr_survey, tmp, row.names = FALSE)
+#' top <- qsr_fast_sort(tmp, by = "ingreso_total", desc = TRUE)
+#' head(top[, c("id", "year", "ingreso_total")])
+#' unlink(tmp)
 #'
 #' @export
 qsr_fast_sort <- function(path,
@@ -1315,10 +1321,12 @@ qsr_fast_sort <- function(path,
 #' @return A data.frame with benchmark results (invisibly).
 #'
 #' @examples
-#' \dontrun{
-#' # Create a test file and benchmark
-#' write.csv(data.frame(x = rnorm(1e6), y = rnorm(1e6)), "test_big.csv")
-#' qsr_benchmark("test_big.csv")
+#' \donttest{
+#' tmp <- tempfile(fileext = ".csv")
+#' utils::write.csv(data.frame(x = stats::rnorm(1e4), y = stats::rnorm(1e4)),
+#'                  tmp, row.names = FALSE)
+#' qsr_benchmark(tmp, n_runs = 1)
+#' unlink(tmp)
 #' }
 #'
 #' @export

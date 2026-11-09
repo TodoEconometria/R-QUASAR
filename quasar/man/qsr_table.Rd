@@ -56,7 +56,6 @@ last model from context. If only \code{type = "summary"} is given, uses
 the active dataset from context.
 }
 \examples{
-\dontrun{
 # Classic usage
 model <- lm(mpg ~ wt + hp, data = mtcars)
 qsr_table(model, caption = "Table 1. OLS estimates")
@@ -65,6 +64,5 @@ qsr_table(model, caption = "Table 1. OLS estimates")
 qsr_data(mtcars)
 qsr_model(mpg ~ wt + hp)
 qsr_table()                    # uses last model
-qsr_table(type = "summary")   # uses active dataset
-}
+
 }

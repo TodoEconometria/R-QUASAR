@@ -27,19 +27,17 @@
 #' @return A list with model and forecast (invisibly).
 #'
 #' @examples
-#' \dontrun{
-#' # Auto-ARIMA with forecast
-#' qsr_ts(AirPassengers, method = "auto", forecast = 12)
+#' # Decomposition and Holt-Winters (base R)
+#' qsr_ts(AirPassengers, method = "decompose")
+#' qsr_ts(AirPassengers, method = "hw", forecast = 12)
 #'
 #' # From a data frame column
-#' qsr_data(economics)
-#' qsr_ts(y = "unemploy", frequency = 12, forecast = 24)
+#' qsr_data(ggplot2::economics)
+#' qsr_ts(y = "unemploy", frequency = 12, method = "decompose")
 #'
-#' # Decomposition
-#' qsr_ts(AirPassengers, method = "decompose")
-#'
-#' # Holt-Winters
-#' qsr_ts(AirPassengers, method = "hw", forecast = 12)
+#' # Auto-ARIMA with forecast
+#' if (requireNamespace("forecast", quietly = TRUE)) {
+#'   qsr_ts(AirPassengers, method = "auto", forecast = 12)
 #' }
 #'
 #' @export

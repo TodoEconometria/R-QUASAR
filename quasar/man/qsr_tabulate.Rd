@@ -83,13 +83,17 @@ step that turns EPA/ENAHO/EH microdata into headline numbers (tasa de paro,
 millones de personas, participación por grupo).
 }
 \examples{
-\dontrun{
-qsr_read("EPA2016.sav")
-# Weighted distribution of activity status:
-qsr_tabulate(by = "AOI", weight = "FACTOREL", stat = "prop")
-# Same, but with design-based SE + 95\% CI (stratified by region):
-qsr_tabulate(by = "AOI", weight = "FACTOREL", stat = "prop",
-             se = TRUE, strata = "CCAA")
+# Weighted distribution by region (population shares)
+qsr_tabulate(qsr_survey, by = "region", weight = "weight", stat = "prop")
+
+# Weighted mean income by indigenous self-identification
+qsr_tabulate(qsr_survey, by = "indigenous", measure = "ingreso_total",
+             stat = "mean")
+
+# Same, with design-based SE + 95\% CI (stratified by region):
+if (requireNamespace("survey", quietly = TRUE)) {
+  qsr_tabulate(qsr_survey, by = "indigenous", measure = "ingreso_total",
+               stat = "mean", se = TRUE, strata = "region", weight = "weight")
 }
 
 }

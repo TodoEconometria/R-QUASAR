@@ -36,10 +36,14 @@ Performs k-fold cross-validation on the last model or a specified method.
 Reports accuracy (classification) or RMSE (regression).
 }
 \examples{
-\dontrun{
 qsr_data(mtcars)
-qsr_cv(mpg ~ ., method = "rf", k = 5)
-qsr_cv(am ~ wt + hp, method = "nn", size = 5, k = 10)
+if (requireNamespace("rpart", quietly = TRUE)) {
+  qsr_cv(mpg ~ wt + hp, method = "tree", k = 5, seed = 1)
+}
+\donttest{
+if (requireNamespace("ranger", quietly = TRUE)) {
+  qsr_cv(mpg ~ ., method = "rf", k = 5, seed = 1)
+}
 }
 
 }

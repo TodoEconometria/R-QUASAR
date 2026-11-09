@@ -46,9 +46,10 @@ SPSS/Stata files — declared user-missing values. \code{qsr_read()} already tur
 is numeric-clean before it enters a model or a weighted tabulation.
 }
 \examples{
-\dontrun{
-qsr_read("ENAHO.dta")
-qsr_na(values = c(99, -9), ranges = list(c(9000, 9999)), na_strings = c("", "."))
-}
+df <- data.frame(age = c(25, 99, 40, -9), income = c(1200, 9999, 800, 1500),
+                 job = c("farmer", "", ".", "trader"))
+clean <- qsr_na(df, values = c(99, -9), ranges = list(c(9000, 9999)),
+                na_strings = c("", "."), register = FALSE)
+clean
 
 }

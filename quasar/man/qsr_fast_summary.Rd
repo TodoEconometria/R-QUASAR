@@ -18,8 +18,10 @@ Polars engine. Useful for quick exploration of large files without loading
 them fully into R.
 }
 \examples{
-\dontrun{
-qsr_fast_summary("data/large_file.csv")
-}
+tmp <- tempfile(fileext = ".csv")
+utils::write.csv(qsr_survey[, c("education", "experience", "ingreso_total")],
+                 tmp, row.names = FALSE)
+qsr_fast_summary(tmp)
+unlink(tmp)
 
 }
