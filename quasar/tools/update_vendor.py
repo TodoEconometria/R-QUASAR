@@ -19,6 +19,7 @@ What it does, following "Using Rust in CRAN packages":
    src/Makevars.win.in builds with `--cfg windows_raw_dylib`.
 4. Writes .cargo-checksum.json with an empty file list for every crate (the
    package checksum is kept), then packs `vendor/` reproducibly with xz -9e.
+   psm < 0.1.29 gets the upstream .note.GNU-stack fix (see patch_psm()).
 5. Writes inst/AUTHORS with name, version, authors, licence and repository of
    every compiled crate, and prints the highest `rust-version` among them, which
    is the real minimum for SystemRequirements.
@@ -210,6 +211,35 @@ def prune_winapi_modules(crate_dir: Path, features: set[str]) -> int:
     return removed
 
 
+GNU_STACK_NOTE = """#if defined(__linux__) && defined(__ELF__)
+.section .note.GNU-stack,"",%progbits
+#endif
+"""
+
+
+def patch_psm(crate_dir: Path) -> int:
+    """Backport of psm 0.1.29: mark the assembly as not needing an executable stack.
+
+    psm >= 0.1.29 needs ar_archive_writer 0.5 (edition 2024, rustc >= 1.85), so the
+    lockfile keeps psm 0.1.26 and gets the upstream fix here. Without it GNU ld warns
+    'missing .note.GNU-stack section implies executable stack', and glibc >= 2.41
+    refuses to dlopen() a shared object that asks for an executable stack.
+    """
+    arch = crate_dir / "src" / "arch"
+    note = arch / "gnu_stack_note.s"
+    if note.exists():
+        return 0
+    note.write_text(GNU_STACK_NOTE, encoding="ascii", newline="\n")
+    patched = 1
+    for asm in arch.glob("*.s"):
+        text = asm.read_text(encoding="utf-8")
+        if '#include "psm.h"' in text and "gnu_stack_note" not in text:
+            text = text.replace('#include "psm.h"', '#include "psm.h"\n#include "gnu_stack_note.s"', 1)
+            asm.write_text(text, encoding="utf-8", newline="\n")
+            patched += 1
+    return patched
+
+
 def crate_dirs(vendor: Path) -> dict[tuple[str, str], Path]:
     dirs = {}
     for d in vendor.iterdir():
@@ -318,6 +348,8 @@ def main() -> None:
             if key in wanted:
                 if key[0] in ("windows", "windows-sys"):
                     removed += prune_windows_modules(d, wanted[key]["enabled_features"])
+                if key[0] == "psm":
+                    removed += patch_psm(d)
                 if key[0] == "winapi":
                     removed += prune_winapi_modules(d, wanted[key]["enabled_features"])
                 removed += len(prune(d, key[0]))
