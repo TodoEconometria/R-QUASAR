@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+# Remove what configure and the Rust build leave in src/ (run by R CMD build/INSTALL --clean).
+rm -rf src/Makevars src/Makevars.win src/.cargo src/vendor src/rust/vendor src/rust/target \
+  src/*.o src/*.so src/*.dll src/*.dylib src/symbols.rds

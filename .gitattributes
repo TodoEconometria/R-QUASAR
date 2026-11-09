@@ -1,0 +1,8 @@
+# Build scripts of the R package must keep LF line endings on every OS,
+# otherwise `configure` fails on Unix ("/usr/bin/env: 'sh\r'").
+quasar/configure        text eol=lf
+quasar/configure.win    text eol=lf
+quasar/cleanup*         text eol=lf
+quasar/src/Makevars*    text eol=lf
+quasar/tools/*          text eol=lf
+*.xz                    binary
