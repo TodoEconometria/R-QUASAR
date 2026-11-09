@@ -3,7 +3,7 @@ name = 'rquasar'
 publish = false
 version = '0.1.0'
 edition = '2021'
-rust-version = '1.65'
+rust-version = '1.82'
 
 [lib]
 crate-type = ['staticlib']
@@ -11,21 +11,24 @@ name = 'rquasar'
 
 [dependencies]
 extendr-api = '0.8.1'
+# Only the Polars features that src/lib.rs actually uses: CSV and Parquet
+# scanning, the lazy engine (select/filter/group_by/sort) and the streaming
+# sink. 'dtype-slim' (date/datetime/duration) and 'dtype-categorical' keep
+# Parquet files written from R (Date, POSIXct, factor columns) readable.
 polars = { version = '0.46', default-features = false, features = [
     'csv',
     'parquet',
     'lazy',
     'streaming',
-    'dtype-full',
-    'strings',
-    'temporal',
-    'round_series',
-    'is_in',
-    'abs',
-    'cum_agg',
-    'log',
+    'dtype-slim',
+    'dtype-categorical',
 ] }
 
+# Profile used by R CMD INSTALL (cargo build --release). CRAN asks for as
+# little CPU time as possible, so no fat LTO and no single codegen unit.
 [profile.release]
-lto = true
-codegen-units = 1
+opt-level = 2
+lto = false
+codegen-units = 16
+debug = false
+incremental = false
