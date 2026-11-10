@@ -1,47 +1,63 @@
 ## Submission summary
 
-This is a new submission of **rquasar**, a framework that eliminates
-boilerplate between raw survey microdata and publication-ready output, with a
-Rust/Polars backend for file-level operations on large datasets.
+This is a new submission of **rquasar**. The package reads survey microdata in
+the formats used by statistical offices, produces design-based survey estimates
+(building on 'survey'), poverty (FGT) and inequality (Gini, Theil, Atkinson)
+measures with design-based standard errors, and publication tables. It includes
+a small 'Rust' backend (via 'extendr' and 'Polars') that filters, groups and
+converts large delimited files to Parquet in bounded memory.
+
+<!-- BEFORE SUBMITTING: fill the three <FILL ...> lines with the external runs
+     on THIS tarball (rquasar_0.1.0.tar.gz, 9 860 721 bytes), or delete them. -->
 
 ## Test environments
 
-* Local: Windows 11, R 4.6.1, Rust 1.97 (stable-x86_64-pc-windows-gnu) — 0 errors, 0 warnings, 1 note
-* win-builder: R-release (4.6.1) and R-devel — 0 errors, 0 warnings, 1 note
+* Local: Windows 11 x64, R 4.6.1 (ucrt), rustc/cargo 1.97.1, `R CMD check --as-cran`
+  on the final tarball (10-nov-2026).
+* Linux (Debian bookworm, Docker, 2 CPUs) with the oldest supported toolchain,
+  rustc 1.82: package compiles and installs.
+* win-builder (R-release and R-devel): <FILL: date and result>
+* mac-builder (macOS arm64, R-release): <FILL: date and result>
+* R-hub v2 (linux, macos-arm64, windows): <FILL: date and result>
 
 ## R CMD check results
 
-`R CMD check --as-cran` (local):
-
-```
-Status: 1 NOTE
 0 errors | 0 warnings | 1 note
-```
 
-The single NOTE contains:
+* checking CRAN incoming feasibility ... NOTE
+  Maintainer: 'Juan Marcelo Gutierrez Miranda <info@todoeconometria.com>'
+  New submission
 
-1. **New submission.** Expected for a first submission.
+This is the first submission of the package.
 
-2. **Package size (tarball ~31 MB).** The package bundles a Rust backend
-   (extendr + Polars). Per the CRAN policy "Using Rust in CRAN packages", all
-   crate sources are vendored offline in `src/rust/vendor.tar.xz` so the build
-   requires no network access. The vendored sources account for essentially all
-   of the tarball size; the R code and compiled artifacts are small. Feature
-   flags on the `polars` dependency are already restricted to the minimum
-   required (csv, parquet, lazy, and the aggregation/filter/sort kernels used by
-   the exported functions).
+The installed size is 44.0 Mb, of which 42.4 Mb is the compiled 'Rust' library
+in `libs/` (the 'Polars' backend). The source tarball is 9.86 MB; most of it is
+the vendored crates in `src/rust/vendor.tar.xz`, required for offline
+compilation as described in "Using Rust in CRAN packages". The vendored set was
+filtered to the platforms CRAN builds on, with tests, benchmarks, documentation,
+test data and all prebuilt binaries removed, and only the 'Polars' features the
+package uses enabled.
 
-   The repository (`URL`/`BugReports`) is public
-   (<https://github.com/TodoEconometria/R-QUASAR>), so those links resolve.
+## Rust
 
-The maintainer's ORCID (0000-0002-4452-7934) is recorded in `Authors@R`.
-
-## System requirements
-
-The package requires the Rust toolchain (Cargo, rustc >= 1.65.0) and `xz` to
-build, as declared in `SystemRequirements`. `configure`/`configure.win` verify
-the toolchain and unpack the vendored sources; the build respects CRAN's Cargo
-flags and does not set non-portable target flags (no `target-cpu=native`).
+* `SystemRequirements: Cargo (Rust's package manager), rustc >= 1.82, xz`. The
+  minimum version is the real one required by the vendored crates and was
+  tested with rustc 1.82 on Linux.
+* `configure`/`configure.win` check that `cargo` and `rustc` are present and
+  meet the minimum version; otherwise they stop with an explanatory message and
+  never try to install a toolchain. They report the versions found.
+* All crates are vendored (`src/rust/vendor.tar.xz`) and compiled with
+  `cargo build -j 2 --offline --locked`. No network access is used during
+  installation, and `CARGO_HOME` points to a temporary directory inside the
+  build tree, so nothing is written to `~/.cargo`.
+* Installation time: about 12 minutes on Windows (2 jobs) and about 6 minutes
+  on Linux with 2 CPUs.
+* Authorship and copyright of the 181 vendored crates are listed in
+  `inst/AUTHORS` and acknowledged in `Authors@R` (role "cph") and the
+  `Copyright` field. All crate licences are compatible with GPL (>= 3).
+* At run time the package uses at most two threads unless the user raises the
+  limit with `options(rquasar.threads = )`, and never more than
+  `OMP_THREAD_LIMIT`.
 
 ## Downstream dependencies
 
