@@ -1,0 +1,49 @@
+# R-hub-style checks for a package that lives in the quasar/ subdirectory.
+# The official r-hub composite actions assume the package is at the repo root,
+# so we run the r-hub container images directly with working-directory: quasar
+# and install Rust ourselves (the images ship R + CRAN system deps but not the
+# Rust toolchain this package's Polars backend needs). Sanitizer images
+# (clang-asan, valgrind, gcc-asan) are intentionally omitted: instrumenting the
+# vendored Polars crates is impractical and would only yield misleading reds.
+name: rhub-custom
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rhub:
+    runs-on: ubuntu-latest
+    name: ${{ matrix.container }}
+    strategy:
+      fail-fast: false
+      matrix:
+        container:
+          - ubuntu-release
+          - ubuntu-next
+          - ubuntu-clang
+          - nosuggests
+    container:
+      image: ghcr.io/r-hub/containers/${{ matrix.container }}:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --default-toolchain stable --profile minimal
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      - name: Toolchain versions
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          cargo --version
+          rustc --version
+
+      - name: R CMD check (--as-cran)
+        working-directory: quasar
+        env:
+          _R_CHECK_CRAN_INCOMING_REMOTE_: false
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          Rscript -e 'if (!requireNamespace("rcmdcheck", quietly = TRUE)) install.packages("rcmdcheck", repos = "https://cloud.r-project.org")'
+          Rscript -e 'rcmdcheck::rcmdcheck(".", args = c("--as-cran", "--no-manual"), error_on = "error")'
