@@ -43,15 +43,19 @@ jobs:
         working-directory: quasar
         env:
           _R_CHECK_CRAN_INCOMING_REMOTE_: false
+          # The heavy Suggests (RPostgres, sparklyr, reticulate, ...) are optional
+          # connectors; like the local --as-cran run we do not require them.
+          _R_CHECK_FORCE_SUGGESTS_: false
         run: |
           export PATH="$HOME/.cargo/bin:$PATH"
-          # The r-hub containers ship pak + P3M binary repos; use them so rcmdcheck
-          # (and its curl dependency) install as binaries instead of compiling from
-          # source, which was failing for lack of libcurl headers. apt-get is a
-          # belt-and-suspenders for the source fallback on the Ubuntu-based images.
+          # Install curl/rcmdcheck and the package's own dependencies (knitr is the
+          # VignetteBuilder) as binaries via pak; apt provides libcurl headers for
+          # any source fallback. Without the deps, R CMD check cannot build the
+          # vignette ("Build process failed").
           if command -v apt-get >/dev/null 2>&1; then
             apt-get update -qq || true
             apt-get install -y --no-install-recommends libcurl4-openssl-dev libssl-dev libxml2-dev || true
           fi
-          Rscript -e 'if (!requireNamespace("rcmdcheck", quietly = TRUE)) { if (requireNamespace("pak", quietly = TRUE)) pak::pkg_install("rcmdcheck") else install.packages("rcmdcheck") }'
+          Rscript -e 'if (!requireNamespace("pak", quietly = TRUE)) install.packages("pak", repos = "https://cloud.r-project.org")'
+          Rscript -e 'pak::pkg_install(c("deps::.", "knitr", "rmarkdown", "rcmdcheck"))'
           Rscript -e 'rcmdcheck::rcmdcheck(".", args = c("--as-cran", "--no-manual"), error_on = "error")'
