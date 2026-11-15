@@ -57,5 +57,8 @@ jobs:
             apt-get install -y --no-install-recommends libcurl4-openssl-dev libssl-dev libxml2-dev || true
           fi
           Rscript -e 'if (!requireNamespace("pak", quietly = TRUE)) install.packages("pak", repos = "https://cloud.r-project.org")'
-          Rscript -e 'pak::pkg_install(c("deps::.", "knitr", "rmarkdown", "rcmdcheck"))'
+          # dependencies = TRUE pulls the Suggests too (as P3M binaries): the
+          # vignettes exercise optional packages (survey, nycflights13, ...) and
+          # R CMD check re-builds them, so they must be present in the container.
+          Rscript -e 'pak::pkg_install(c("deps::.", "rcmdcheck"), dependencies = TRUE)'
           Rscript -e 'rcmdcheck::rcmdcheck(".", args = c("--as-cran", "--no-manual"), error_on = "error")'
