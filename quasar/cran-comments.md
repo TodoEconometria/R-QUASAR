@@ -7,18 +7,15 @@ measures with design-based standard errors, and publication tables. It includes
 a small 'Rust' backend (via 'extendr' and 'Polars') that filters, groups and
 converts large delimited files to Parquet in bounded memory.
 
-<!-- BEFORE SUBMITTING: fill the three <FILL ...> lines with the external runs
-     on THIS tarball (rquasar_0.1.0.tar.gz, 9 860 721 bytes), or delete them. -->
-
 ## Test environments
 
 * Local: Windows 11 x64, R 4.6.1 (ucrt), rustc/cargo 1.97.1, `R CMD check --as-cran`
-  on the final tarball (10-nov-2026).
+  on the final tarball (15-nov-2026): 0 errors, 0 warnings, 1 note.
 * Linux (Debian bookworm, Docker, 2 CPUs) with the oldest supported toolchain,
   rustc 1.82: package compiles and installs.
-* win-builder (R-release and R-devel): <FILL: date and result>
-* mac-builder (macOS arm64, R-release): <FILL: date and result>
-* R-hub v2 (linux, macos-arm64, windows): <FILL: date and result>
+* win-builder (R-release 4.6.2 and R-devel r90890, 15-nov-2026): 0 errors,
+  0 warnings, 1 note (new submission only).
+* GitHub Actions (R-release): Ubuntu, Windows and R-devel on Ubuntu, all passing.
 
 ## R CMD check results
 
