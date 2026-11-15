@@ -45,5 +45,13 @@ jobs:
           _R_CHECK_CRAN_INCOMING_REMOTE_: false
         run: |
           export PATH="$HOME/.cargo/bin:$PATH"
-          Rscript -e 'if (!requireNamespace("rcmdcheck", quietly = TRUE)) install.packages("rcmdcheck", repos = "https://cloud.r-project.org")'
+          # The r-hub containers ship pak + P3M binary repos; use them so rcmdcheck
+          # (and its curl dependency) install as binaries instead of compiling from
+          # source, which was failing for lack of libcurl headers. apt-get is a
+          # belt-and-suspenders for the source fallback on the Ubuntu-based images.
+          if command -v apt-get >/dev/null 2>&1; then
+            apt-get update -qq || true
+            apt-get install -y --no-install-recommends libcurl4-openssl-dev libssl-dev libxml2-dev || true
+          fi
+          Rscript -e 'if (!requireNamespace("rcmdcheck", quietly = TRUE)) { if (requireNamespace("pak", quietly = TRUE)) pak::pkg_install("rcmdcheck") else install.packages("rcmdcheck") }'
           Rscript -e 'rcmdcheck::rcmdcheck(".", args = c("--as-cran", "--no-manual"), error_on = "error")'
