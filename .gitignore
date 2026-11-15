@@ -21,3 +21,5 @@ quasar/src/Makevars.win
 # Doc interno de desarrollo (NO publico)
 CONTEXT.md
 .CONTEXT.md
+QUASAR_BLUEPRINT.md
+quasar/QUASAR_BLUEPRINT.md

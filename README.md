@@ -57,6 +57,16 @@ qsr_plot(type = "coefficient")  # coefficient plot
 - [Manual](quasar/docs/QUASAR_MANUAL.md)
 - Companion open benchmarks: [rquasar-benchmarks](https://github.com/TodoEconometria/rquasar-benchmarks)
 
+## Contributing
+
+This project evaluates **proposals, not patches**. Pull requests are closed
+automatically; the way to contribute is to **[open an issue](../../issues/new/choose)**
+describing the problem, the purpose, and your reasoning — the maintainer does the
+implementation. AI-generated code, documentation or images are not accepted.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full policy and the reasoning behind
+it ([*Evaluación por PROMPTS*](https://github.com/TodoEconometria/evaluacion-prompts-ia)).
+
 ## License
 
 GPL-3 · © Juan Marcelo Gutierrez Miranda — [TodoEconometria](https://github.com/TodoEconometria)

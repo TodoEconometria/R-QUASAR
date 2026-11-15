@@ -1,0 +1,50 @@
+name: Proposal (feature, change, or question)
+description: Propose a change by explaining the problem and the reasoning — not a patch.
+title: "[Proposal]: "
+labels: ["proposal"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This project evaluates **proposals, not patches**. Describe the *why*
+        before the *how*; the maintainer does the analysis and implementation.
+        See [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md).
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is wrong, missing, or unclear? Be concrete.
+    validations:
+      required: true
+  - type: textarea
+    id: purpose
+    attributes:
+      label: Purpose (why)
+      description: Why does this matter? Who benefits, and in what situation?
+    validations:
+      required: true
+  - type: textarea
+    id: reasoning
+    attributes:
+      label: Reasoning and context
+      description: >
+        How would you approach it, and why that way? Alternatives you considered.
+        For a bug, add a minimal reproducible example (data, code, expected vs actual).
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: rquasar version and platform
+      description: e.g. 0.1.0, Windows / R 4.6.1 (only for bugs).
+    validations:
+      required: false
+  - type: checkboxes
+    id: policy
+    attributes:
+      label: Acknowledgements
+      options:
+        - label: I have read CONTRIBUTING.md and I am proposing, not submitting a patch.
+          required: true
+        - label: This proposal contains no AI-generated code, documentation, or images.
+          required: true
